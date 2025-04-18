@@ -9,6 +9,47 @@
 
 <br>
 
+## folder plans (ChatGPT)
+
+- file structure
+```
+rossip/
+├── Cargo.toml
+├── src/
+│   ├── main.rs               # entry point, sets up the async runtime
+│   ├── config.rs             # config structs, constants, CLI args if needed
+│   ├── message.rs            # message format + (de)serialization, message ID logic
+│   ├── peer/
+│   │   ├── mod.rs            # peer list manager, discovery, heartbeat
+│   │   ├── discovery.rs      # mDNS or UDP "hello" logic
+│   │   ├── tracker.rs        # heartbeat, timeouts, peer liveness
+│   ├── net/
+│   │   ├── mod.rs            # UDP socket setup
+│   │   ├── broadcaster.rs    # sending messages to peers
+│   │   ├── listener.rs       # receives + parses incoming messages
+│   ├── ui/
+│   │   ├── mod.rs            # user I/O manager (CLI input/output)
+│   │   ├── input.rs          # reads user input from terminal
+│   │   ├── output.rs         # displays messages to terminal
+│   ├── utils.rs              # message ID cache, timestamp utils, etc.
+```
+
+- crates maybe needed
+```
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+bincode = "1.3"
+dashmap = "5"
+uuid = { version = "1", features = ["v4"] }
+socket2 = "0.5"
+mdns = "1.0"  # optional, or use `async-mdns`
+clap = "4"    # optional, CLI arg parsing
+chrono = "0.4"  # timestamps and timeouts
+```
+
+<br>
+
 ## Appendix: Architecture Notes (Design thoughts from ChatGPT)
 
 That’s an awesome little project to learn Rust with! You're building a decentralized, local-network-only gossip protocol, and that checks a lot of boxes for learning about systems, networking, and Rust concurrency. Let's break it down and talk concepts, protocols, and crates/tools you might consider.
