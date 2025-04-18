@@ -13,3 +13,4 @@ socket2 = "0.5"
 mdns = "1.0"  # optional, or use `async-mdns`
 clap = "4"    # optional, CLI arg parsing
 chrono = "0.4"  # timestamps and timeouts
+nanoid = "0.4.0"

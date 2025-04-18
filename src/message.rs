@@ -4,4 +4,6 @@ use serde::{Serialize, Deserialize};
 pub struct Message {
     pub sender: String,
     pub content: String,
+    pub message_id: String,
+    pub timestamp: i64,
 }

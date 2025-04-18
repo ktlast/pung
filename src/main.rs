@@ -1,5 +1,6 @@
 mod net;
 mod message;
+mod utils;
 
 use tokio::net::UdpSocket;
 use tokio::io::{self, AsyncBufReadExt};
@@ -30,6 +31,8 @@ async fn main() -> std::io::Result<()> {
         let msg = Message {
             sender: "test".to_string(),
             content: line,
+            message_id: nanoid::nanoid!(),
+            timestamp: chrono::Utc::now().timestamp(),
         };
         broadcaster::send_message(&socket_send, &msg, "255.255.255.255:8889").await?;
     }
