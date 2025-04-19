@@ -7,7 +7,8 @@ use tokio::net::UdpSocket;
 use bincode;
 use std::collections::HashSet;
 use std::net::SocketAddr;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 pub async fn listen(
     socket: &UdpSocket,
@@ -25,7 +26,7 @@ pub async fn listen(
         let (len, addr) = socket.recv_from(&mut buf).await?;
         if let Ok(msg) = bincode::deserialize::<Message>(&buf[..len]) {
             // Check if we've already seen this message
-            let mut seen_ids = seen_message_ids.lock().unwrap();
+            let mut seen_ids = seen_message_ids.lock().await;
             
             // Process the message based on its type
             match msg.msg_type {
