@@ -29,11 +29,14 @@ impl PeerList {
     }
 
     pub fn add_or_update_peer(&mut self, addr: SocketAddr, username: String) {
-        self.peers.insert(addr, PeerInfo {
+        self.peers.insert(
             addr,
-            username,
-            last_seen: Instant::now(),
-        });
+            PeerInfo {
+                addr,
+                username,
+                last_seen: Instant::now(),
+            },
+        );
     }
 
     pub fn remove_peer(&mut self, addr: &SocketAddr) -> bool {
@@ -55,7 +58,8 @@ impl PeerList {
 
     pub fn remove_stale_peers(&mut self, timeout: Duration) -> Vec<SocketAddr> {
         let now = Instant::now();
-        let stale_peers: Vec<SocketAddr> = self.peers
+        let stale_peers: Vec<SocketAddr> = self
+            .peers
             .iter()
             .filter(|(_, info)| now.duration_since(info.last_seen) > timeout)
             .map(|(addr, _)| *addr)

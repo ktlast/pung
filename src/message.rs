@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -30,7 +30,7 @@ impl Message {
             sender_addr: sender_addr.map(|addr| addr.to_string()),
         }
     }
-    
+
     pub fn new_discovery(sender: String, sender_addr: SocketAddr) -> Self {
         Message {
             sender,
@@ -41,7 +41,7 @@ impl Message {
             sender_addr: Some(sender_addr.to_string()),
         }
     }
-    
+
     pub fn new_heartbeat(sender: String, sender_addr: SocketAddr) -> Self {
         Message {
             sender,
@@ -52,11 +52,11 @@ impl Message {
             sender_addr: Some(sender_addr.to_string()),
         }
     }
-    
+
     pub fn new_peer_list(sender: String, peers: Vec<String>, sender_addr: SocketAddr) -> Self {
         // Format peer list as a comma-separated string
         let peer_list = peers.join(",");
-        
+
         Message {
             sender,
             content: peer_list,
