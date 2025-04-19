@@ -1,11 +1,20 @@
-use crate::message::Message;
+use crate::message::{Message, MessageType};
 use crate::utils;
+use crate::peer::SharedPeerList;
+use crate::peer::discovery;
+use crate::peer::heartbeats;
 use tokio::net::UdpSocket;
 use bincode;
 use std::collections::HashSet;
+use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 
-pub async fn listen(socket: &UdpSocket) -> std::io::Result<()> {
+pub async fn listen(
+    socket: &UdpSocket,
+    peer_list: Option<SharedPeerList>,
+    username: Option<String>,
+    local_addr: Option<SocketAddr>,
+) -> std::io::Result<()> {
     let mut buf = [0u8; 1024];
     
     // Track seen message IDs to avoid showing duplicates
@@ -18,10 +27,39 @@ pub async fn listen(socket: &UdpSocket) -> std::io::Result<()> {
             // Check if we've already seen this message
             let mut seen_ids = seen_message_ids.lock().unwrap();
             
-            // If this is a new message (not seen before), display it
-            if seen_ids.insert(msg.message_id.clone()) {
-                let formatted_time = utils::display_time_from_timestamp(msg.timestamp);
-                println!("[{}]: {}     ({})", msg.sender, msg.content, formatted_time);
+            // Process the message based on its type
+            match msg.msg_type {
+                MessageType::Chat => {
+                    // If this is a new message (not seen before), display it
+                    if seen_ids.insert(msg.message_id.clone()) {
+                        let formatted_time = utils::display_time_from_timestamp(msg.timestamp);
+                        println!("[{}]: {}     ({})", msg.sender, msg.content, formatted_time);
+                    }
+                },
+                MessageType::Discovery => {
+                    // Handle discovery message if peer tracking is enabled
+                    if let (Some(peer_list), Some(username), Some(local_addr)) = (&peer_list, &username, local_addr) {
+                        if let Err(e) = discovery::handle_discovery_message(&msg, peer_list, socket, username, local_addr).await {
+                            eprintln!("Error handling discovery message: {}", e);
+                        }
+                    }
+                },
+                MessageType::Heartbeat => {
+                    // Handle heartbeat message if peer tracking is enabled
+                    if let Some(peer_list) = &peer_list {
+                        if let Err(e) = heartbeats::handle_heartbeat_message(&msg, peer_list).await {
+                            eprintln!("Error handling heartbeat message: {}", e);
+                        }
+                    }
+                },
+                MessageType::PeerList => {
+                    // Handle peer list message if peer tracking is enabled
+                    if let (Some(peer_list), Some(username), Some(local_addr)) = (&peer_list, &username, local_addr) {
+                        if let Err(e) = discovery::handle_peer_list_message(&msg, peer_list, socket, username, local_addr).await {
+                            eprintln!("Error handling peer list message: {}", e);
+                        }
+                    }
+                },
             }
             
             // Limit the size of the seen messages set to avoid memory growth 
