@@ -2,6 +2,7 @@ use crate::message::Message;
 use crate::net::broadcaster;
 use crate::peer::SharedPeerList;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::UdpSocket;
 use tokio::time;
@@ -12,23 +13,22 @@ const PEER_TIMEOUT: u64 = 60; // seconds
 
 /// Starts the heartbeat mechanism to maintain peer liveness
 pub async fn start_heartbeat(
-    socket: UdpSocket,
+    socket: Arc<UdpSocket>,
     username: String,
     local_addr: SocketAddr,
     peer_list: SharedPeerList,
 ) -> std::io::Result<()> {
-    let socket = std::sync::Arc::new(socket);
-    let socket_clone = socket.clone();
     
     // Start heartbeat sender
     let username_clone = username.clone();
     let peer_list_clone = peer_list.clone();
     tokio::spawn(async move {
         let mut interval = time::interval(Duration::from_secs(HEARTBEAT_INTERVAL));
+        let socket_clone = socket.clone();
         
         loop {
             interval.tick().await;
-            if let Err(e) = send_heartbeats(&socket_clone, &username_clone, local_addr, &peer_list_clone).await {
+            if let Err(e) = send_heartbeats(socket_clone.clone(), &username_clone, local_addr, &peer_list_clone).await {
                 eprintln!("Error sending heartbeats: {}", e);
             }
         }
@@ -50,13 +50,13 @@ pub async fn start_heartbeat(
 
 /// Sends heartbeat messages to all known peers
 async fn send_heartbeats(
-    socket: &UdpSocket,
+    socket: Arc<UdpSocket>,
     username: &str,
     local_addr: SocketAddr,
     peer_list: &SharedPeerList,
 ) -> std::io::Result<()> {
     let heartbeat_msg = Message::new_heartbeat(username.to_string(), local_addr);
-    
+    let socket_clone = socket.clone();
     // Get the current list of peers
     let peers = {
         let peer_list = peer_list.lock().await;
@@ -65,7 +65,7 @@ async fn send_heartbeats(
     
     // Send heartbeat to each peer
     for peer in peers {
-        broadcaster::send_message(socket, &heartbeat_msg, &peer.addr.to_string()).await?;
+        broadcaster::send_message(socket_clone.clone(), &heartbeat_msg, &peer.addr.to_string()).await?;
     }
     
     Ok(())

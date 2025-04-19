@@ -11,7 +11,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 pub async fn listen(
-    socket: &UdpSocket,
+    socket: Arc<UdpSocket>,
     peer_list: Option<SharedPeerList>,
     username: Option<String>,
     local_addr: Option<SocketAddr>,
@@ -21,9 +21,10 @@ pub async fn listen(
     // Track seen message IDs to avoid showing duplicates
     // We use a HashSet wrapped in Arc<Mutex<>> for thread safety
     let seen_message_ids = Arc::new(Mutex::new(HashSet::new()));
+    let socket_clone = socket.clone();
     
     loop {
-        let (len, addr) = socket.recv_from(&mut buf).await?;
+        let (len, addr) = socket_clone.clone().recv_from(&mut buf).await?;
         if let Ok(msg) = bincode::deserialize::<Message>(&buf[..len]) {
             // Check if we've already seen this message
             let mut seen_ids = seen_message_ids.lock().await;
@@ -40,7 +41,7 @@ pub async fn listen(
                 MessageType::Discovery => {
                     // Handle discovery message if peer tracking is enabled
                     if let (Some(peer_list), Some(username), Some(local_addr)) = (&peer_list, &username, local_addr) {
-                        if let Err(e) = discovery::handle_discovery_message(&msg, peer_list, socket, username, local_addr).await {
+                        if let Err(e) = discovery::handle_discovery_message(&msg, peer_list, socket_clone.clone(), username, local_addr).await {
                             eprintln!("Error handling discovery message: {}", e);
                         }
                     }
@@ -56,7 +57,7 @@ pub async fn listen(
                 MessageType::PeerList => {
                     // Handle peer list message if peer tracking is enabled
                     if let (Some(peer_list), Some(username), Some(local_addr)) = (&peer_list, &username, local_addr) {
-                        if let Err(e) = discovery::handle_peer_list_message(&msg, peer_list, socket, username, local_addr).await {
+                        if let Err(e) = discovery::handle_peer_list_message(&msg, peer_list, socket_clone.clone(), username, local_addr).await {
                             eprintln!("Error handling peer list message: {}", e);
                         }
                     }
