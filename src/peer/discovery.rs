@@ -1,6 +1,6 @@
 use crate::DEFAULT_RECV_PORT;
 use crate::message::Message;
-use crate::net::broadcaster;
+use crate::net::sender;
 use crate::peer::SharedPeerList;
 use std::net::SocketAddr;
 use std::str::FromStr;
@@ -52,7 +52,7 @@ async fn send_discovery_message(
 
     // Broadcast to the default receive port
     let broadcast_addr = format!("{BROADCAST_ADDR}:{}", DEFAULT_RECV_PORT);
-    broadcaster::send_message(socket.clone(), &discovery_msg, &broadcast_addr).await?;
+    sender::send_message(socket.clone(), &discovery_msg, &broadcast_addr).await?;
 
     Ok(())
 }
@@ -74,7 +74,7 @@ pub async fn handle_discovery_message(
 
             // Send a discovery response back to the peer
             let response = Message::new_discovery(username.to_string(), local_addr);
-            broadcaster::send_message(socket_clone.clone(), &response, addr_str).await?;
+            sender::send_message(socket_clone.clone(), &response, addr_str).await?;
 
             // Optionally, send our peer list to the new peer
             let peers = peer_list.get_peers();
@@ -83,7 +83,7 @@ pub async fn handle_discovery_message(
 
                 let peer_list_msg =
                     Message::new_peer_list(username.to_string(), peer_addrs, local_addr);
-                broadcaster::send_message(socket_clone.clone(), &peer_list_msg, addr_str).await?;
+                sender::send_message(socket_clone.clone(), &peer_list_msg, addr_str).await?;
             }
         }
     }
@@ -128,7 +128,7 @@ pub async fn handle_peer_list_message(
 
                 // Send a discovery message to this new peer
                 let discovery_msg = Message::new_discovery(username.to_string(), local_addr);
-                broadcaster::send_message(socket_clone.clone(), &discovery_msg, &addr.to_string())
+                sender::send_message(socket_clone.clone(), &discovery_msg, &addr.to_string())
                     .await?;
             }
         }

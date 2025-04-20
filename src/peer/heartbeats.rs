@@ -1,5 +1,5 @@
 use crate::message::Message;
-use crate::net::broadcaster;
+use crate::net::sender;
 use crate::peer::SharedPeerList;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -65,7 +65,7 @@ async fn send_heartbeats(
     
     // Send heartbeat to each peer
     for peer in peers {
-        broadcaster::send_message(socket_clone.clone(), &heartbeat_msg, &peer.addr.to_string()).await?;
+        sender::send_message(socket_clone.clone(), &heartbeat_msg, &peer.addr.to_string()).await?;
     }
     
     Ok(())
