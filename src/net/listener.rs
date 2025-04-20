@@ -39,6 +39,12 @@ pub async fn listen(
                     }
                 }
                 MessageType::Discovery => {
+                    // DEBUG: Display discovery message
+                    println!("[DEBUG::Discovery] message received from: {}", msg.sender);
+                    if let Some(addr) = &msg.sender_addr {
+                        println!("[DEBUG::Discovery] Sender address: {}", addr);
+                    }
+
                     // Handle discovery message if peer tracking is enabled
                     if let (Some(peer_list), Some(username), Some(local_addr)) =
                         (&peer_list, &username, local_addr)
@@ -57,6 +63,10 @@ pub async fn listen(
                     }
                 }
                 MessageType::Heartbeat => {
+                    println!("[DEBUG::Heartbeat] message received from: {}", msg.sender);
+                    if let Some(addr) = &msg.sender_addr {
+                        println!("[DEBUG::Heartbeat] Sender address: {}", addr);
+                    }
                     // Handle heartbeat message if peer tracking is enabled
                     if let Some(peer_list) = &peer_list {
                         if let Err(e) = heartbeats::handle_heartbeat_message(&msg, peer_list).await
@@ -66,6 +76,13 @@ pub async fn listen(
                     }
                 }
                 MessageType::PeerList => {
+                    // DEBUG: Display peer list message
+                    println!("[DEBUG::PeerList] message received from: {}", msg.sender);
+                    if let Some(addr) = &msg.sender_addr {
+                        println!("[DEBUG::PeerList] Sender address: {}", addr);
+                    }
+                    println!("[DEBUG::PeerList] Peer list content: {}", msg.content);
+
                     // Handle peer list message if peer tracking is enabled
                     if let (Some(peer_list), Some(username), Some(local_addr)) =
                         (&peer_list, &username, local_addr)
