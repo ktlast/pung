@@ -4,10 +4,11 @@ mod peer;
 mod utils;
 
 use message::Message;
-use net::{broadcaster, listener};
+use net::{listener, sender};
 use peer::PeerList;
 use peer::{discovery, heartbeats};
 use std::env;
+use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::io::{self, AsyncBufReadExt};
 use tokio::net::UdpSocket;
@@ -54,6 +55,13 @@ async fn main() -> std::io::Result<()> {
     // Create shared peer list for tracking peers
     let peer_list = Arc::new(Mutex::new(PeerList::new()));
 
+    // Get local LAN IP address
+    let local_ip = utils::get_local_ip().unwrap_or_else(|| {
+        println!("Warning: Could not determine local IP address, using 0.0.0.0");
+        "0.0.0.0".parse().unwrap()
+    });
+    println!("Using local IP address: {}", local_ip);
+
     // Bind sockets
     let socket_send = Arc::new(UdpSocket::bind(format!("0.0.0.0:{}", send_port)).await?);
     socket_send.set_broadcast(true)?;
@@ -67,8 +75,8 @@ async fn main() -> std::io::Result<()> {
         None
     };
 
-    // Get local address for peer discovery
-    let local_addr = socket_send.local_addr()?;
+    // Create a proper socket address with the local IP for peer discovery
+    let local_addr = SocketAddr::new(local_ip, send_port);
 
     // Prepare shared socket for sending
     let socket_send_clone = socket_send.clone();
@@ -124,7 +132,7 @@ async fn main() -> std::io::Result<()> {
         let msg = Message::new_chat(username.clone(), line, Some(local_addr));
 
         // Send to the single receive port
-        broadcaster::send_message(
+        sender::send_message(
             socket_send_clone.clone(),
             &msg,
             &format!("255.255.255.255:{}", DEFAULT_RECV_PORT),

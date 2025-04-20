@@ -18,33 +18,40 @@ pub async fn start_heartbeat(
     local_addr: SocketAddr,
     peer_list: SharedPeerList,
 ) -> std::io::Result<()> {
-    
     // Start heartbeat sender
     let username_clone = username.clone();
     let peer_list_clone = peer_list.clone();
     tokio::spawn(async move {
         let mut interval = time::interval(Duration::from_secs(HEARTBEAT_INTERVAL));
         let socket_clone = socket.clone();
-        
+
         loop {
             interval.tick().await;
-            if let Err(e) = send_heartbeats(socket_clone.clone(), &username_clone, local_addr, &peer_list_clone).await {
+            println!("[DEBUG] Sending heartbeats");
+            if let Err(e) = send_heartbeats(
+                socket_clone.clone(),
+                &username_clone,
+                local_addr,
+                &peer_list_clone,
+            )
+            .await
+            {
                 eprintln!("Error sending heartbeats: {}", e);
             }
         }
     });
-    
+
     // Start peer timeout checker
     let peer_list_clone = peer_list.clone();
     tokio::spawn(async move {
         let mut interval = time::interval(Duration::from_secs(HEARTBEAT_INTERVAL));
-        
+
         loop {
             interval.tick().await;
             check_peer_timeouts(&peer_list_clone).await;
         }
     });
-    
+
     Ok(())
 }
 
@@ -62,12 +69,12 @@ async fn send_heartbeats(
         let peer_list = peer_list.lock().await;
         peer_list.get_peers()
     };
-    
+
     // Send heartbeat to each peer
     for peer in peers {
         sender::send_message(socket_clone.clone(), &heartbeat_msg, &peer.addr.to_string()).await?;
     }
-    
+
     Ok(())
 }
 
@@ -78,7 +85,7 @@ async fn check_peer_timeouts(peer_list: &SharedPeerList) {
         let mut peer_list = peer_list.lock().await;
         peer_list.remove_stale_peers(timeout)
     };
-    
+
     // Log removed peers
     for addr in stale_peers {
         println!("Peer timed out and was removed: {}", addr);
@@ -93,7 +100,7 @@ pub async fn handle_heartbeat_message(
     if let Some(addr_str) = &msg.sender_addr {
         if let Ok(addr) = addr_str.parse::<SocketAddr>() {
             let mut peer_list = peer_list.lock().await;
-            
+
             // If we already know this peer, update the last_seen time
             if peer_list.update_last_seen(&addr) {
                 // Peer already known, just updated last_seen
@@ -104,6 +111,6 @@ pub async fn handle_heartbeat_message(
             }
         }
     }
-    
+
     Ok(())
 }
