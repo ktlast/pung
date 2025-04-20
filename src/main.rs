@@ -3,53 +3,67 @@ mod net;
 mod peer;
 mod utils;
 
+use clap::{Arg, Command};
 use message::Message;
 use net::{listener, sender};
 use peer::PeerList;
 use peer::{discovery, heartbeats};
-use std::env;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::io::{self, AsyncBufReadExt};
 use tokio::net::UdpSocket;
 use tokio::sync::Mutex;
 
-const DEFAULT_SEND_PORT: u16 = 8888;
-const DEFAULT_RECV_PORT: u16 = 9487;
-// List of common ports that instances might be listening on
-// We only use one receive port now
-// Default username
-const DEFAULT_USERNAME: &str = "user";
-
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
-    // Parse command line arguments for port configuration
-    let args: Vec<String> = env::args().collect();
+    // Parse command line arguments using clap
+    let matches = Command::new("Rossip Chat")
+        .version("1.0")
+        .author("Your Name")
+        .about("A simple UDP-based chat application")
+        .arg(
+            Arg::new("username")
+                .short('u')
+                .long("username")
+                .value_name("USERNAME")
+                .help("Sets the username for chat")
+                .default_value("user"),
+        )
+        .arg(
+            Arg::new("receive_port")
+                .short('r')
+                .long("receive-port")
+                .value_name("PORT")
+                .help("Sets the port for receiving messages")
+                .default_value("9487"),
+        )
+        .arg(
+            Arg::new("sender_only")
+                .short('s')
+                .long("sender-only")
+                .help("Run in sender-only mode (no receiving)")
+                .action(clap::ArgAction::SetTrue),
+        )
+        .get_matches();
 
-    // Format: cargo run [username] [send_port] [sender_only]
-    // We're now using the DEFAULT_RECV_PORT constant directly
-    let username = if args.len() > 1 {
-        args[1].clone()
-    } else {
-        DEFAULT_USERNAME.to_string()
-    };
-    let send_port = if args.len() > 2 {
-        args[2].parse().unwrap_or(DEFAULT_SEND_PORT)
-    } else {
-        DEFAULT_SEND_PORT
-    };
-    let sender_only = if args.len() > 3 {
-        args[3].to_lowercase() == "true" || args[3] == "1"
-    } else {
-        false
-    };
+    // Extract values from command line arguments
+    let username = matches.get_one::<String>("username").unwrap().clone();
+
+    // If send_port is not provided or is set to 0, generate a random port
+    let send_port = utils::get_random_port(20000, 30000);
+    let receive_port = matches
+        .get_one::<String>("receive_port")
+        .unwrap()
+        .parse::<u16>()
+        .unwrap_or(9487);
+    let sender_only = matches.get_flag("sender_only");
 
     // We'll broadcast to all common receive ports to ensure all instances receive our messages
     // Each instance will ignore messages from itself based on the message ID
 
     println!(
         "@@@ Starting rossip with username={}, send_port={}, recv_port={}, sender_only={}",
-        username, send_port, DEFAULT_RECV_PORT, sender_only
+        username, send_port, receive_port, sender_only
     );
 
     // Create shared peer list for tracking peers
@@ -69,7 +83,7 @@ async fn main() -> std::io::Result<()> {
     // Only bind the receive socket if not in sender-only mode
     let socket_recv = if !sender_only {
         Some(Arc::new(
-            UdpSocket::bind(format!("0.0.0.0:{}", DEFAULT_RECV_PORT)).await?,
+            UdpSocket::bind(format!("0.0.0.0:{}", receive_port)).await?,
         ))
     } else {
         None
@@ -85,7 +99,13 @@ async fn main() -> std::io::Result<()> {
         println!("Running in sender-only mode. Will not receive any messages.");
         // Start peer discovery
         let username_clone = username.clone();
-        discovery::start_discovery(socket_send_clone.clone(), username_clone, local_addr).await?;
+        discovery::start_discovery(
+            socket_send_clone.clone(),
+            username_clone,
+            local_addr,
+            receive_port,
+        )
+        .await?;
     } else {
         // Set up two-way communication (both sending and receiving)
         if let Some(recv_socket) = socket_recv {
@@ -108,8 +128,13 @@ async fn main() -> std::io::Result<()> {
 
             // Start peer discovery
             let username_clone = username.clone();
-            discovery::start_discovery(socket_send_clone.clone(), username_clone, local_addr)
-                .await?;
+            discovery::start_discovery(
+                socket_send_clone.clone(),
+                username_clone,
+                local_addr,
+                receive_port,
+            )
+            .await?;
 
             // Start heartbeat mechanism
             let peer_list_clone = peer_list.clone();
@@ -147,9 +172,9 @@ async fn main() -> std::io::Result<()> {
 
         // Send the message to each known peer
         for peer in peers {
-            // Use the peer's IP address but with the DEFAULT_RECV_PORT
+            // Use the peer's IP address but with the receive_port
             let peer_ip = peer.addr.ip();
-            let target_addr = format!("{peer_ip}:{DEFAULT_RECV_PORT}");
+            let target_addr = format!("{peer_ip}:{receive_port}");
             sender::send_message(socket_send_clone.clone(), &msg, &target_addr).await?;
         }
     }

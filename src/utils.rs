@@ -1,5 +1,6 @@
 use chrono::{DateTime, FixedOffset, TimeZone, Utc};
 use get_if_addrs::get_if_addrs;
+use rand::Rng;
 use std::net::IpAddr;
 
 pub fn display_time_from_timestamp(timestamp: i64) -> String {
@@ -43,4 +44,10 @@ pub fn get_local_ip() -> Option<IpAddr> {
         }
         Err(_) => None,
     }
+}
+
+/// Generate a random port number within the specified range
+pub fn get_random_port(min: u16, max: u16) -> u16 {
+    let mut rng = rand::thread_rng();
+    rng.gen_range(min..=max)
 }

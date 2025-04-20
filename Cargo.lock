@@ -759,6 +759,7 @@ dependencies = [
  "get_if_addrs",
  "mdns",
  "nanoid",
+ "rand",
  "serde",
  "socket2",
  "tokio 1.44.2",
