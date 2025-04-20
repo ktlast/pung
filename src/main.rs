@@ -48,7 +48,7 @@ async fn main() -> std::io::Result<()> {
     // Each instance will ignore messages from itself based on the message ID
 
     println!(
-        "Starting rossip with username={}, send_port={}, recv_port={}, sender_only={}",
+        "@@@ Starting rossip with username={}, send_port={}, recv_port={}, sender_only={}",
         username, send_port, DEFAULT_RECV_PORT, sender_only
     );
 
@@ -60,7 +60,7 @@ async fn main() -> std::io::Result<()> {
         println!("Warning: Could not determine local IP address, using 0.0.0.0");
         "0.0.0.0".parse().unwrap()
     });
-    println!("Using local IP address: {}", local_ip);
+    println!("@@@ Using local IP address: {}", local_ip);
 
     // Bind sockets
     let socket_send = Arc::new(UdpSocket::bind(format!("0.0.0.0:{}", send_port)).await?);
@@ -83,6 +83,9 @@ async fn main() -> std::io::Result<()> {
 
     if sender_only {
         println!("Running in sender-only mode. Will not receive any messages.");
+        // Start peer discovery
+        let username_clone = username.clone();
+        discovery::start_discovery(socket_send_clone.clone(), username_clone, local_addr).await?;
     } else {
         // Set up two-way communication (both sending and receiving)
         if let Some(recv_socket) = socket_recv {
@@ -122,6 +125,11 @@ async fn main() -> std::io::Result<()> {
     }
 
     // Read user input
+    let peers = {
+        let peer_list_lock = peer_list.lock().await;
+        peer_list_lock.get_peers()
+    };
+    println!("@@@ Known peers: {:?}", peers);
     let stdin = io::BufReader::new(io::stdin());
     let mut lines = stdin.lines();
 
@@ -131,13 +139,19 @@ async fn main() -> std::io::Result<()> {
         // Create a chat message
         let msg = Message::new_chat(username.clone(), line, Some(local_addr));
 
-        // Send to the single receive port
-        sender::send_message(
-            socket_send_clone.clone(),
-            &msg,
-            &format!("255.255.255.255:{}", DEFAULT_RECV_PORT),
-        )
-        .await?;
+        // Get the list of known peers
+        let peers = {
+            let peer_list_lock = peer_list.lock().await;
+            peer_list_lock.get_peers()
+        };
+
+        // Send the message to each known peer
+        for peer in peers {
+            // Use the peer's IP address but with the DEFAULT_RECV_PORT
+            let peer_ip = peer.addr.ip();
+            let target_addr = format!("{peer_ip}:{DEFAULT_RECV_PORT}");
+            sender::send_message(socket_send_clone.clone(), &msg, &target_addr).await?;
+        }
     }
 
     Ok(())
