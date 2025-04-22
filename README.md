@@ -1,4 +1,4 @@
-# rossip
+# PUNG
  A simple intranet chat application designed to run entirely in the command line (CLI/terminal).
 
 <br>
@@ -13,7 +13,7 @@
 
 - file structure
 ```
-rossip/
+pung/
 ├── Cargo.toml
 ├── src/
 │   ├── main.rs               # entry point, sets up the async runtime
