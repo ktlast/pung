@@ -35,7 +35,21 @@ pub async fn listen(
                     // If this is a new message (not seen before), display it
                     if seen_ids.insert(msg.message_id.clone()) {
                         let formatted_time = utils::display_time_from_timestamp(msg.timestamp);
-                        println!("[{}]: {}     ({})", msg.sender, msg.content, formatted_time);
+
+                        // Assume terminal width is 80 characters
+                        const TERM_WIDTH: usize = 80;
+
+                        // Calculate the base message length (sender + content)
+                        let base_msg = format!("[{}]: {}", msg.sender, msg.content);
+                        let time_display = format!("({})", formatted_time);
+
+                        // Calculate padding needed to right-align the timestamp
+                        let padding = TERM_WIDTH
+                            .saturating_sub(base_msg.len())
+                            .saturating_sub(time_display.len());
+
+                        // Format with proper padding
+                        println!("{}{}{}", base_msg, " ".repeat(padding), time_display);
                     }
                 }
                 MessageType::Discovery => {} // Do nothing
