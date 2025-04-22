@@ -15,6 +15,8 @@ use tokio::io::{self, AsyncBufReadExt};
 use tokio::net::UdpSocket;
 use tokio::sync::Mutex;
 
+const DEFAULT_RECV_INIT_PORT: u16 = 9487;
+
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
     // Parse command line arguments using clap
@@ -35,8 +37,7 @@ async fn main() -> std::io::Result<()> {
                 .short('r')
                 .long("receive-port")
                 .value_name("PORT")
-                .help("Sets the port for receiving messages")
-                .default_value("9487"),
+                .help("Sets the port for receiving messages (random if not specified)"),
         )
         .arg(
             Arg::new("sender_only")
@@ -50,13 +51,16 @@ async fn main() -> std::io::Result<()> {
     // Extract values from command line arguments
     let username = matches.get_one::<String>("username").unwrap().clone();
 
-    // If send_port is not provided or is set to 0, generate a random port
+    // Generate a random port for sending
     let send_port = utils::get_random_port(20000, 30000);
-    let receive_port = matches
-        .get_one::<String>("receive_port")
-        .unwrap()
-        .parse::<u16>()
-        .unwrap_or(9487);
+
+    // Generate a random port for receiving if not specified
+    let receive_port = match matches.get_one::<String>("receive_port") {
+        Some(port_str) => port_str
+            .parse::<u16>()
+            .unwrap_or_else(|_| utils::get_random_port(10000, 20000)),
+        None => utils::get_random_port(10000, 20000),
+    };
     let sender_only = matches.get_flag("sender_only");
 
     // We'll broadcast to all common receive ports to ensure all instances receive our messages
@@ -90,6 +94,9 @@ async fn main() -> std::io::Result<()> {
         None
     };
 
+    let socket_recv_only_for_init =
+        Arc::new(UdpSocket::bind(format!("0.0.0.0:{}", DEFAULT_RECV_INIT_PORT)).await?);
+
     // Create a proper socket address with the local IP for peer discovery
     let local_addr = SocketAddr::new(local_ip, send_port);
 
@@ -100,13 +107,7 @@ async fn main() -> std::io::Result<()> {
         println!("Running in sender-only mode. Will not receive any messages.");
         // Start peer discovery
         let username_clone = username.clone();
-        discovery::start_discovery(
-            socket_send_clone.clone(),
-            username_clone,
-            local_addr,
-            receive_port,
-        )
-        .await?;
+        discovery::start_discovery(socket_send_clone.clone(), username_clone, local_addr).await?;
     } else {
         // Set up two-way communication (both sending and receiving)
         if let Some(recv_socket) = socket_recv {
@@ -127,15 +128,25 @@ async fn main() -> std::io::Result<()> {
                 }
             });
 
+            let peer_list_clone = peer_list.clone();
+            let username_clone = username.clone();
+            tokio::spawn(async move {
+                if let Err(e) = listener::listen_for_init(
+                    socket_recv_only_for_init.clone(),
+                    Some(peer_list_clone),
+                    Some(username_clone),
+                    Some(local_addr),
+                )
+                .await
+                {
+                    eprintln!("Listen for init error: {:?}", e);
+                }
+            });
+
             // Start peer discovery
             let username_clone = username.clone();
-            discovery::start_discovery(
-                socket_send_clone.clone(),
-                username_clone,
-                local_addr,
-                receive_port,
-            )
-            .await?;
+            discovery::start_discovery(socket_send_clone.clone(), username_clone, local_addr)
+                .await?;
 
             // Start heartbeat mechanism
             let peer_list_clone = peer_list.clone();

@@ -38,30 +38,7 @@ pub async fn listen(
                         println!("[{}]: {}     ({})", msg.sender, msg.content, formatted_time);
                     }
                 }
-                MessageType::Discovery => {
-                    // DEBUG: Display discovery message
-                    println!("[DEBUG::Discovery] message received from: {}", msg.sender);
-                    if let Some(addr) = &msg.sender_addr {
-                        println!("[DEBUG::Discovery] Sender address: {}", addr);
-                    }
-
-                    // Handle discovery message if peer tracking is enabled
-                    if let (Some(peer_list), Some(username), Some(local_addr)) =
-                        (&peer_list, &username, local_addr)
-                    {
-                        if let Err(e) = discovery::handle_discovery_message(
-                            &msg,
-                            peer_list,
-                            socket_clone.clone(),
-                            username,
-                            local_addr,
-                        )
-                        .await
-                        {
-                            eprintln!("Error handling discovery message: {}", e);
-                        }
-                    }
-                }
+                MessageType::Discovery => {} // Do nothing
                 MessageType::Heartbeat => {
                     println!("[DEBUG::Heartbeat] message received from: {}", msg.sender);
                     if let Some(addr) = &msg.sender_addr {
@@ -107,6 +84,54 @@ pub async fn listen(
                 // Keep only the 500 most recent messages (simple approach)
                 // In a real app, you might want a more sophisticated approach
                 *seen_ids = seen_ids.iter().take(500).cloned().collect();
+            }
+        } else {
+            eprintln!("Received invalid message from {}", addr);
+        }
+    }
+}
+
+pub async fn listen_for_init(
+    socket_recv_only_for_init: Arc<UdpSocket>,
+    peer_list: Option<SharedPeerList>,
+    username: Option<String>,
+    local_addr: Option<SocketAddr>,
+) -> std::io::Result<()> {
+    let mut buf = [0u8; 1024];
+    // Start peer discovery
+    loop {
+        let (len, addr) = socket_recv_only_for_init
+            .clone()
+            .recv_from(&mut buf)
+            .await?;
+        if let Ok(msg) = bincode::deserialize::<Message>(&buf[..len]) {
+            // Process the message based on its type
+            match msg.msg_type {
+                MessageType::Discovery => {
+                    // DEBUG: Display discovery message
+                    println!("[DEBUG::Discovery] message received from: {}", msg.sender);
+                    if let Some(addr) = &msg.sender_addr {
+                        println!("[DEBUG::Discovery] Sender address: {}", addr);
+                    }
+
+                    // Handle discovery message if peer tracking is enabled
+                    if let (Some(peer_list), Some(username), Some(local_addr)) =
+                        (&peer_list, &username, local_addr)
+                    {
+                        if let Err(e) = discovery::handle_discovery_message(
+                            &msg,
+                            peer_list,
+                            socket_recv_only_for_init.clone(),
+                            username,
+                            local_addr,
+                        )
+                        .await
+                        {
+                            eprintln!("Error handling discovery message: {}", e);
+                        }
+                    }
+                }
+                _ => {}
             }
         } else {
             eprintln!("Received invalid message from {}", addr);

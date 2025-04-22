@@ -1,3 +1,4 @@
+use crate::DEFAULT_RECV_INIT_PORT;
 use crate::message::Message;
 use crate::net::sender;
 use crate::peer::SharedPeerList;
@@ -17,13 +18,12 @@ pub async fn start_discovery(
     socket: Arc<UdpSocket>,
     username: String,
     local_addr: SocketAddr,
-    receive_port: u16,
 ) -> std::io::Result<()> {
     let socket_clone = socket.clone();
     let username_clone = username.clone();
 
     // Send initial discovery message
-    send_discovery_message(socket, &username, local_addr, receive_port).await?;
+    send_discovery_message(socket, &username, local_addr).await?;
 
     // Periodically send discovery messages
     tokio::spawn(async move {
@@ -31,13 +31,8 @@ pub async fn start_discovery(
 
         loop {
             interval.tick().await;
-            if let Err(e) = send_discovery_message(
-                socket_clone.clone(),
-                &username_clone,
-                local_addr,
-                receive_port,
-            )
-            .await
+            if let Err(e) =
+                send_discovery_message(socket_clone.clone(), &username_clone, local_addr).await
             {
                 eprintln!("Error sending discovery message: {}", e);
             }
@@ -52,12 +47,11 @@ async fn send_discovery_message(
     socket: Arc<UdpSocket>,
     username: &str,
     local_addr: SocketAddr,
-    receive_port: u16,
 ) -> std::io::Result<()> {
     let discovery_msg = Message::new_discovery(username.to_string(), local_addr);
 
     // Broadcast to the specified receive port
-    let broadcast_addr = format!("{BROADCAST_ADDR}:{}", receive_port);
+    let broadcast_addr = format!("{BROADCAST_ADDR}:{}", DEFAULT_RECV_INIT_PORT);
     sender::send_message(socket.clone(), &discovery_msg, &broadcast_addr).await?;
 
     Ok(())
