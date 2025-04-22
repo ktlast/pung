@@ -11,7 +11,7 @@ use peer::PeerList;
 use peer::{discovery, heartbeats};
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tokio::io::{self, AsyncBufReadExt};
+use tokio::io::{self, AsyncBufReadExt, AsyncWriteExt};
 use tokio::net::UdpSocket;
 use tokio::sync::Mutex;
 
@@ -150,9 +150,10 @@ async fn main() -> std::io::Result<()> {
     let stdin = io::BufReader::new(io::stdin());
     let mut lines = stdin.lines();
 
-    println!("Enter messages:");
-
     while let Ok(Some(line)) = lines.next_line().await {
+        // Clear the line with the user's input by moving cursor up and clearing the line
+        print!("\x1B[1A\x1B[2K"); // ANSI escape code: move up 1 line and clear entire line
+        io::stdout().flush().await?;
         // Check if the input is a command
         if line.starts_with("/") {
             // Handle command
@@ -160,6 +161,8 @@ async fn main() -> std::io::Result<()> {
             if let Some(response) = ui::commands::handle_command(&line, peer_list_clone).await {
                 println!("{}", response);
             }
+        } else if line.is_empty() {
+            // Do nothing
         } else {
             // Create a chat message
             let msg = Message::new_chat(username.clone(), line, Some(local_addr));
