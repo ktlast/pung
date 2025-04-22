@@ -1,6 +1,7 @@
 mod message;
 mod net;
 mod peer;
+mod ui;
 mod utils;
 
 use clap::{Arg, Command};
@@ -161,21 +162,30 @@ async fn main() -> std::io::Result<()> {
     println!("Enter messages:");
 
     while let Ok(Some(line)) = lines.next_line().await {
-        // Create a chat message
-        let msg = Message::new_chat(username.clone(), line, Some(local_addr));
+        // Check if the input is a command
+        if line.starts_with("/") {
+            // Handle command
+            let peer_list_clone = peer_list.clone();
+            if let Some(response) = ui::commands::handle_command(&line, peer_list_clone).await {
+                println!("{}", response);
+            }
+        } else {
+            // Create a chat message
+            let msg = Message::new_chat(username.clone(), line, Some(local_addr));
 
-        // Get the list of known peers
-        let peers = {
-            let peer_list_lock = peer_list.lock().await;
-            peer_list_lock.get_peers()
-        };
+            // Get the list of known peers
+            let peers = {
+                let peer_list_lock = peer_list.lock().await;
+                peer_list_lock.get_peers()
+            };
 
-        // Send the message to each known peer
-        for peer in peers {
-            // Use the peer's IP address but with the receive_port
-            let peer_ip = peer.addr.ip();
-            let target_addr = format!("{peer_ip}:{receive_port}");
-            sender::send_message(socket_send_clone.clone(), &msg, &target_addr).await?;
+            // Send the message to each known peer
+            for peer in peers {
+                // Use the peer's IP address but with the receive_port
+                let peer_ip = peer.addr.ip();
+                let target_addr = format!("{peer_ip}:{receive_port}");
+                sender::send_message(socket_send_clone.clone(), &msg, &target_addr).await?;
+            }
         }
     }
 
