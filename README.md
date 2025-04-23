@@ -1,10 +1,5 @@
 # PUNG
- A simple intranet chat application designed to run entirely in the command line (CLI/terminal).
-
-<br>
-
-## Notes
-1. 2025/04: Just start learning Rust lang, so in the early stage, the code may be not so good.
+Pung is a lightweight intranet chat tool for the command line, operating entirely over UDP. The name is a nod to “ping,” a Caesar cipher of “chat,” and an acronym for Peer-to-peer UDP Network Gossip—or Grapevine, depending on your peer.
 
 
 <br>
