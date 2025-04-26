@@ -35,6 +35,17 @@ impl PeerList {
         } else {
             username
         };
+        
+        // Don't add new anonymous peers from other instances
+        // Only update existing ones or add non-anonymous peers
+        if username.starts_with("anonymous@") {
+            // Check if this peer already exists
+            let existing = self.peers.values().any(|peer| peer.addr == addr);
+            if !existing {
+                // Skip adding new anonymous peers
+                return;
+            }
+        }
 
         // Update existing peer if username exists, otherwise add new
         if let Some(existing_peer) = self.peers.get_mut(&username) {
@@ -91,6 +102,23 @@ impl PeerList {
         }
 
         stale_peers
+    }
+    
+    pub fn remove_anonymous_peers(&mut self) -> Vec<String> {
+        // Find all peers with anonymous in their username
+        let anonymous_peers: Vec<String> = self
+            .peers
+            .iter()
+            .filter(|(_, info)| info.username.starts_with("anonymous@"))
+            .map(|(username, _)| username.clone())
+            .collect();
+
+        // Remove them from the HashMap
+        for username in &anonymous_peers {
+            self.peers.remove(username);
+        }
+
+        anonymous_peers
     }
     
     pub fn remove_peer_by_index(&mut self, index: usize) -> Option<PeerInfo> {

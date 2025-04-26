@@ -124,13 +124,20 @@ pub async fn handle_peer_list_message(
             if addr == local_addr {
                 continue;
             }
+            
+            // Skip if this looks like an anonymous peer from another instance
+            // This helps prevent the proliferation of anonymous peers
+            if addr_str.contains("anonymous@") {
+                log::debug!("Skipping anonymous peer: {}", addr_str);
+                continue;
+            }
 
             // Check if this is a new peer
             let is_new = !peer_list_lock.update_last_seen(&addr);
 
             if is_new {
                 // We don't know the username yet, so use a temporary name
-                // This will be updated when we receive a message from them
+                // But don't use anonymous@ prefix to avoid accumulating anonymous peers
                 let temp_name = format!("peer@{}", addr);
                 peer_list_lock.add_or_update_peer(addr, temp_name);
                 new_peers = true;
