@@ -35,12 +35,42 @@ pub async fn listen(
                     // If this is a new message (not seen before), display it
                     if seen_ids.insert(msg.message_id.clone()) {
                         let formatted_time = utils::display_time_from_timestamp(msg.timestamp);
+                        let sender_name = &msg.sender;
+
+                        // Verify the sender's username against our peer list if available
+                        let verified_sender = if let (Some(peer_list), Some(sender_addr)) =
+                            (&peer_list, &msg.sender_addr)
+                        {
+                            if let Ok(socket_addr) = sender_addr.parse::<SocketAddr>() {
+                                let peer_list_lock = peer_list.lock().await;
+                                // Use find_username_by_addr to verify the sender's username
+                                match peer_list_lock.find_username_by_addr(&socket_addr) {
+                                    Some(verified_name) => {
+                                        if &verified_name != sender_name {
+                                            // Username mismatch - use the verified one but note the discrepancy
+                                            format!("{} (claimed: {})", verified_name, sender_name)
+                                        } else {
+                                            // Username matches what we expect
+                                            verified_name
+                                        }
+                                    }
+                                    None => {
+                                        // We don't know this peer yet, use the claimed name but mark as unverified
+                                        format!("{} (unverified)", sender_name)
+                                    }
+                                }
+                            } else {
+                                sender_name.clone()
+                            }
+                        } else {
+                            sender_name.clone()
+                        };
 
                         // Assume terminal width is 80 characters
                         const TERM_WIDTH: usize = 80;
 
                         // Calculate the base message length (sender + content)
-                        let base_msg = format!("[{}]: {}", msg.sender, msg.content);
+                        let base_msg = format!("[{}]: {}", verified_sender, msg.content);
                         let time_display = format!("({})", formatted_time);
 
                         // Calculate padding needed to right-align the timestamp
@@ -54,25 +84,25 @@ pub async fn listen(
                 }
                 MessageType::Discovery => {} // Do nothing
                 MessageType::Heartbeat => {
-                    println!("[DEBUG::Heartbeat] message received from: {}", msg.sender);
+                    log::debug!("[Heartbeat] message received from: {}", msg.sender);
                     if let Some(addr) = &msg.sender_addr {
-                        println!("[DEBUG::Heartbeat] Sender address: {}", addr);
+                        log::debug!("[Heartbeat] Sender address: {}", addr);
                     }
                     // Handle heartbeat message if peer tracking is enabled
                     if let Some(peer_list) = &peer_list {
                         if let Err(e) = heartbeats::handle_heartbeat_message(&msg, peer_list).await
                         {
-                            eprintln!("Error handling heartbeat message: {}", e);
+                            log::error!("Error handling heartbeat message: {}", e);
                         }
                     }
                 }
                 MessageType::PeerList => {
                     // DEBUG: Display peer list message
-                    println!("[DEBUG::PeerList] message received from: {}", msg.sender);
+                    log::debug!("[PeerList] message received from: {}", msg.sender);
                     if let Some(addr) = &msg.sender_addr {
-                        println!("[DEBUG::PeerList] Sender address: {}", addr);
+                        log::debug!("[PeerList] Sender address: {}", addr);
                     }
-                    println!("[DEBUG::PeerList] Peer list content: {}", msg.content);
+                    log::debug!("[PeerList] Peer list content: {}", msg.content);
 
                     // Handle peer list message if peer tracking is enabled
                     if let (Some(peer_list), Some(username), Some(local_addr)) =
@@ -87,7 +117,7 @@ pub async fn listen(
                         )
                         .await
                         {
-                            eprintln!("Error handling peer list message: {}", e);
+                            log::error!("Error handling peer list message: {}", e);
                         }
                     }
                 }
@@ -100,7 +130,7 @@ pub async fn listen(
                 *seen_ids = seen_ids.iter().take(500).cloned().collect();
             }
         } else {
-            eprintln!("Received invalid message from {}", addr);
+            log::error!("Received invalid message from {}", addr);
         }
     }
 }
@@ -120,35 +150,32 @@ pub async fn listen_for_init(
             .await?;
         if let Ok(msg) = bincode::deserialize::<Message>(&buf[..len]) {
             // Process the message based on its type
-            match msg.msg_type {
-                MessageType::Discovery => {
-                    // DEBUG: Display discovery message
-                    println!("[DEBUG::Discovery] message received from: {}", msg.sender);
-                    if let Some(addr) = &msg.sender_addr {
-                        println!("[DEBUG::Discovery] Sender address: {}", addr);
-                    }
+            if let MessageType::Discovery = msg.msg_type {
+                // DEBUG: Display discovery message
+                log::debug!("[Discovery] message received from: {}", msg.sender);
+                if let Some(addr) = &msg.sender_addr {
+                    log::debug!("[Discovery] Sender address: {}", addr);
+                }
 
-                    // Handle discovery message if peer tracking is enabled
-                    if let (Some(peer_list), Some(username), Some(local_addr)) =
-                        (&peer_list, &username, local_addr)
+                // Handle discovery message if peer tracking is enabled
+                if let (Some(peer_list), Some(username), Some(local_addr)) =
+                    (&peer_list, &username, local_addr)
+                {
+                    if let Err(e) = discovery::handle_discovery_message(
+                        &msg,
+                        peer_list,
+                        socket_recv_only_for_init.clone(),
+                        username,
+                        local_addr,
+                    )
+                    .await
                     {
-                        if let Err(e) = discovery::handle_discovery_message(
-                            &msg,
-                            peer_list,
-                            socket_recv_only_for_init.clone(),
-                            username,
-                            local_addr,
-                        )
-                        .await
-                        {
-                            eprintln!("Error handling discovery message: {}", e);
-                        }
+                        log::error!("Error handling discovery message: {}", e);
                     }
                 }
-                _ => {}
             }
         } else {
-            eprintln!("Received invalid message from {}", addr);
+            log::error!("Received invalid message from {}", addr);
         }
     }
 }

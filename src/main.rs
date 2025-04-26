@@ -9,6 +9,7 @@ use message::Message;
 use net::{listener, sender};
 use peer::PeerList;
 use peer::{discovery, heartbeats};
+use rand::RngCore;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::io::{self, AsyncBufReadExt, AsyncWriteExt};
@@ -20,17 +21,16 @@ const DEFAULT_RECV_INIT_PORT: u16 = 9487;
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
     // Parse command line arguments using clap
-    let matches = Command::new("Rossip Chat")
+    let matches = Command::new("pung")
         .version("1.0")
         .author("Your Name")
-        .about("A simple UDP-based chat application")
+        .about("Peer-to-peer UDP Network Gossip.")
         .arg(
             Arg::new("username")
                 .short('u')
                 .long("username")
                 .value_name("USERNAME")
-                .help("Sets the username for chat")
-                .default_value("user"),
+                .help("Sets the username for chat"),
         )
         .arg(
             Arg::new("receive_port")
@@ -42,7 +42,14 @@ async fn main() -> std::io::Result<()> {
         .get_matches();
 
     // Extract values from command line arguments
-    let username = matches.get_one::<String>("username").unwrap().clone();
+    let username = match matches.get_one::<String>("username") {
+        Some(username) => username.clone(),
+        None => {
+            let mut bytes = [0u8; 2];
+            rand::thread_rng().fill_bytes(&mut bytes);
+            format!("user-{}", hex::encode(bytes))
+        }
+    };
 
     // Generate a random port for sending
     let send_port = utils::get_random_port(20000, 30000);
@@ -86,7 +93,7 @@ async fn main() -> std::io::Result<()> {
         Arc::new(UdpSocket::bind(format!("0.0.0.0:{}", DEFAULT_RECV_INIT_PORT)).await?);
 
     // Create a proper socket address with the local IP for peer discovery
-    let local_addr = SocketAddr::new(local_ip, send_port);
+    let local_addr = SocketAddr::new(local_ip, receive_port);
 
     // Prepare shared socket for sending
     let socket_send_clone = socket_send.clone();
@@ -141,12 +148,7 @@ async fn main() -> std::io::Result<()> {
         .await?;
     }
 
-    // Read user input
-    let peers = {
-        let peer_list_lock = peer_list.lock().await;
-        peer_list_lock.get_peers()
-    };
-    println!("@@@ Known peers: {:?}", peers);
+    println!("@@@ To show known peers, type [/peers]");
     let stdin = io::BufReader::new(io::stdin());
     let mut lines = stdin.lines();
 
@@ -168,16 +170,13 @@ async fn main() -> std::io::Result<()> {
             let msg = Message::new_chat(username.clone(), line, Some(local_addr));
 
             // Get the list of known peers
-            let peers = {
-                let peer_list_lock = peer_list.lock().await;
-                peer_list_lock.get_peers()
-            };
+            let peers = peer_list.lock().await.get_peers();
 
             // Send the message to each known peer
-            for peer in peers {
-                // Use the peer's IP address but with the receive_port
-                let peer_ip = peer.addr.ip();
-                let target_addr = format!("{peer_ip}:{receive_port}");
+            for peer in &peers {
+                // Use the peer's actual address (IP and port)
+                let target_addr = peer.addr.to_string();
+                log::debug!("[Chat] Sending chat message to: {}", target_addr);
                 sender::send_message(socket_send_clone.clone(), &msg, &target_addr).await?;
             }
         }
