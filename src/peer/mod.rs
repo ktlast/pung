@@ -33,7 +33,7 @@ impl PeerList {
     fn generate_peer_key(username: &str, addr: &SocketAddr) -> String {
         format!("{}@{}", username, addr)
     }
-    
+
     pub fn add_or_update_peer(&mut self, addr: SocketAddr, username: String) {
         // If username is empty or just an IP address, generate a better name
         let username = if username.is_empty() || username.contains(':') {
@@ -41,7 +41,7 @@ impl PeerList {
         } else {
             username
         };
-        
+
         // Don't add new anonymous peers from other instances
         // Only update existing ones or add non-anonymous peers
         if username.starts_with("anonymous@") {
@@ -55,7 +55,7 @@ impl PeerList {
 
         // Generate a unique key for this peer
         let key = Self::generate_peer_key(&username, &addr);
-        
+
         // Check if we already have this exact peer
         if let Some(existing_peer) = self.peers.get_mut(&key) {
             // Just update the last_seen time
@@ -63,19 +63,21 @@ impl PeerList {
         } else {
             // Check if we have another peer with the same address
             let addr_exists = self.peers.values().any(|peer| peer.addr == addr);
-            
+
             // If the address exists, update that peer instead of creating a new one
             if addr_exists {
                 // Find and remove the old peer entry
-                let old_key = self.peers.iter()
+                let old_key = self
+                    .peers
+                    .iter()
                     .find(|(_, peer)| peer.addr == addr)
                     .map(|(key, _)| key.clone());
-                
+
                 if let Some(old_key) = old_key {
                     self.peers.remove(&old_key);
                 }
             }
-            
+
             // Add the new peer
             self.peers.insert(
                 key,
@@ -94,10 +96,12 @@ impl PeerList {
 
     pub fn update_last_seen(&mut self, addr: &SocketAddr) -> bool {
         // Find peer by address
-        let peer_key = self.peers.iter()
+        let peer_key = self
+            .peers
+            .iter()
             .find(|(_, peer)| &peer.addr == addr)
             .map(|(key, _)| key.clone());
-            
+
         if let Some(key) = peer_key {
             if let Some(peer) = self.peers.get_mut(&key) {
                 peer.last_seen = Instant::now();
@@ -132,7 +136,7 @@ impl PeerList {
 
         stale_peers
     }
-    
+
     pub fn remove_anonymous_peers(&mut self) -> Vec<String> {
         // Find all peers with anonymous in their username
         let anonymous_keys: Vec<String> = self
@@ -144,7 +148,7 @@ impl PeerList {
 
         // Keep track of removed usernames for reporting
         let mut removed_usernames = Vec::new();
-        
+
         // Remove them from the HashMap
         for key in &anonymous_keys {
             if let Some(peer) = self.peers.remove(key) {
@@ -154,20 +158,66 @@ impl PeerList {
 
         removed_usernames
     }
-    
+
+    /// Consolidate duplicate users with the same username and IP
+    /// This helps clean up the peer list when users restart their application
+    /// and get assigned a new port
+    pub fn consolidate_duplicate_users(&mut self) {
+        // First, collect all peers by username and IP
+        let mut user_groups: HashMap<(String, std::net::IpAddr), Vec<String>> = HashMap::new();
+
+        // Group peers by username and IP
+        for (key, peer) in &self.peers {
+            let username = peer.username.clone();
+            let ip = peer.addr.ip();
+            let entry = user_groups.entry((username, ip)).or_insert_with(Vec::new);
+            entry.push(key.clone());
+        }
+
+        // For each group with more than one entry, keep only the most recently seen
+        for ((username, ip), keys) in user_groups {
+            if keys.len() > 1 {
+                // Find the most recently seen peer in this group
+                let mut most_recent_key = keys[0].clone();
+                let mut most_recent_time = Instant::now() - Duration::from_secs(9999); // Very old time
+
+                for key in &keys {
+                    if let Some(peer) = self.peers.get(key) {
+                        if peer.last_seen > most_recent_time {
+                            most_recent_time = peer.last_seen;
+                            most_recent_key = key.clone();
+                        }
+                    }
+                }
+
+                // Remove all but the most recent peer
+                for key in keys {
+                    if key != most_recent_key {
+                        if let Some(peer) = self.peers.remove(&key) {
+                            println!(
+                                "@@@ Consolidated duplicate peer: {} at {}",
+                                peer.username, peer.addr
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     pub fn remove_peer_by_index(&mut self, index: usize) -> Option<PeerInfo> {
         // Get all peers as a vector
         let peers = self.get_peers();
-        
+
         // Check if the index is valid
         if index < peers.len() {
             // Get the address and username of the peer at the specified index
             let addr = peers[index].addr;
             let username = peers[index].username.clone();
-            
+
             // Generate the key for this peer
             let key = Self::generate_peer_key(&username, &addr);
-            
+
             // Remove the peer from the HashMap and return it
             self.peers.remove(&key)
         } else {

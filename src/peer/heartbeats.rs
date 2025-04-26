@@ -81,6 +81,14 @@ async fn send_heartbeats(
 /// Checks for peers that haven't been seen recently and removes them
 async fn check_peer_timeouts(peer_list: &SharedPeerList) {
     let timeout = Duration::from_secs(PEER_TIMEOUT);
+    
+    // First, consolidate peers with the same username and IP
+    {
+        let mut peer_list = peer_list.lock().await;
+        peer_list.consolidate_duplicate_users();
+    }
+    
+    // Then remove stale peers
     let stale_peers = {
         let mut peer_list = peer_list.lock().await;
         peer_list.remove_stale_peers(timeout)
@@ -101,13 +109,42 @@ pub async fn handle_heartbeat_message(
         if let Ok(addr) = addr_str.parse::<SocketAddr>() {
             let mut peer_list = peer_list.lock().await;
 
-            // If we already know this peer, update the last_seen time
-            if peer_list.update_last_seen(&addr) {
-                // Peer already known, just updated last_seen
-            } else {
-                // This is a new peer, add it to our list
-                peer_list.add_or_update_peer(addr, msg.sender.clone());
-                println!("New peer discovered via heartbeat: {} ({})", msg.sender, addr);
+            // Check if we already know this exact peer by address
+            let known_exact = peer_list.update_last_seen(&addr);
+
+            // If not known by exact address, check if this might be a user we already know
+            // but with a different port (e.g., after restart)
+            if !known_exact {
+                // Get all peers we know about
+                let peers = peer_list.get_peers();
+
+                // Check if we have another peer with the same username and IP but different port
+                let same_user = peers.iter().any(|p| {
+                    // Extract IP from SocketAddr (ignoring port)
+                    let peer_ip = p.addr.ip();
+                    let current_ip = addr.ip();
+
+                    // Check if same username and IP
+                    p.username == msg.sender && peer_ip == current_ip
+                });
+
+                if same_user {
+                    // This is likely the same user who restarted their application
+                    // Update their address to the new one
+                    log::debug!(
+                        "Updating address for existing user: {} to {}",
+                        msg.sender,
+                        addr
+                    );
+                    peer_list.add_or_update_peer(addr, msg.sender.clone());
+                } else {
+                    // This is a genuinely new peer
+                    peer_list.add_or_update_peer(addr, msg.sender.clone());
+                    println!(
+                        "New peer discovered via heartbeat: {} ({})",
+                        msg.sender, addr
+                    );
+                }
             }
         }
     }
