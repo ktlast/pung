@@ -113,7 +113,7 @@ impl PeerList {
 
     // Find a peer by address and return its username if found
     pub fn find_username_by_addr(&self, addr: &SocketAddr) -> Option<String> {
-        for (_, peer) in &self.peers {
+        for peer in self.peers.values() {
             if &peer.addr == addr {
                 return Some(peer.username.clone());
             }
@@ -137,28 +137,6 @@ impl PeerList {
         stale_peers
     }
 
-    pub fn remove_anonymous_peers(&mut self) -> Vec<String> {
-        // Find all peers with anonymous in their username
-        let anonymous_keys: Vec<String> = self
-            .peers
-            .iter()
-            .filter(|(_, info)| info.username.starts_with("anonymous@"))
-            .map(|(key, _)| key.clone())
-            .collect();
-
-        // Keep track of removed usernames for reporting
-        let mut removed_usernames = Vec::new();
-
-        // Remove them from the HashMap
-        for key in &anonymous_keys {
-            if let Some(peer) = self.peers.remove(key) {
-                removed_usernames.push(peer.username);
-            }
-        }
-
-        removed_usernames
-    }
-
     /// Consolidate duplicate users with the same username and IP
     /// This helps clean up the peer list when users restart their application
     /// and get assigned a new port
@@ -170,12 +148,12 @@ impl PeerList {
         for (key, peer) in &self.peers {
             let username = peer.username.clone();
             let ip = peer.addr.ip();
-            let entry = user_groups.entry((username, ip)).or_insert_with(Vec::new);
+            let entry = user_groups.entry((username, ip)).or_default();
             entry.push(key.clone());
         }
 
         // For each group with more than one entry, keep only the most recently seen
-        for ((username, ip), keys) in user_groups {
+        for ((_username, _ip), keys) in user_groups {
             if keys.len() > 1 {
                 // Find the most recently seen peer in this group
                 let mut most_recent_key = keys[0].clone();
