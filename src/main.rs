@@ -59,7 +59,7 @@ async fn main() -> std::io::Result<()> {
     // Each instance will ignore messages from itself based on the message ID
 
     println!(
-        "@@@ Starting rossip with username={}, send_port={}, recv_port={}",
+        "@@@ Starting pung with username={}, send_port={}, recv_port={}",
         username, send_port, receive_port
     );
 
