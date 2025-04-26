@@ -39,10 +39,6 @@ impl PeerList {
         );
     }
 
-    pub fn remove_peer(&mut self, addr: &SocketAddr) -> bool {
-        self.peers.remove(addr).is_some()
-    }
-
     pub fn get_peers(&self) -> Vec<PeerInfo> {
         self.peers.values().cloned().collect()
     }
