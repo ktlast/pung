@@ -120,32 +120,29 @@ pub async fn listen_for_init(
             .await?;
         if let Ok(msg) = bincode::deserialize::<Message>(&buf[..len]) {
             // Process the message based on its type
-            match msg.msg_type {
-                MessageType::Discovery => {
-                    // DEBUG: Display discovery message
-                    println!("[DEBUG::Discovery] message received from: {}", msg.sender);
-                    if let Some(addr) = &msg.sender_addr {
-                        println!("[DEBUG::Discovery] Sender address: {}", addr);
-                    }
+            if let MessageType::Discovery = msg.msg_type {
+                // DEBUG: Display discovery message
+                println!("[DEBUG::Discovery] message received from: {}", msg.sender);
+                if let Some(addr) = &msg.sender_addr {
+                    println!("[DEBUG::Discovery] Sender address: {}", addr);
+                }
 
-                    // Handle discovery message if peer tracking is enabled
-                    if let (Some(peer_list), Some(username), Some(local_addr)) =
-                        (&peer_list, &username, local_addr)
+                // Handle discovery message if peer tracking is enabled
+                if let (Some(peer_list), Some(username), Some(local_addr)) =
+                    (&peer_list, &username, local_addr)
+                {
+                    if let Err(e) = discovery::handle_discovery_message(
+                        &msg,
+                        peer_list,
+                        socket_recv_only_for_init.clone(),
+                        username,
+                        local_addr,
+                    )
+                    .await
                     {
-                        if let Err(e) = discovery::handle_discovery_message(
-                            &msg,
-                            peer_list,
-                            socket_recv_only_for_init.clone(),
-                            username,
-                            local_addr,
-                        )
-                        .await
-                        {
-                            eprintln!("Error handling discovery message: {}", e);
-                        }
+                        eprintln!("Error handling discovery message: {}", e);
                     }
                 }
-                _ => {}
             }
         } else {
             eprintln!("Received invalid message from {}", addr);
