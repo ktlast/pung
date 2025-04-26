@@ -69,7 +69,14 @@ pub async fn handle_discovery_message(
         if let Ok(addr) = SocketAddr::from_str(addr_str) {
             // Add the peer to our list
             let mut peer_list = peer_list.lock().await;
-            peer_list.add_or_update_peer(addr, msg.sender.clone());
+            
+            // Check if this is a new peer or an existing one with a new address
+            let is_new = !peer_list.update_last_seen(&addr);
+            if is_new {
+                peer_list.add_or_update_peer(addr, msg.sender.clone());
+                println!("New peer discovered: {} ({})", msg.sender, addr);
+            }
+            
             let socket_clone = socket.clone();
 
             // Send a discovery response back to the peer
@@ -122,8 +129,10 @@ pub async fn handle_peer_list_message(
             let is_new = !peer_list_lock.update_last_seen(&addr);
 
             if is_new {
-                // We don't know the username yet, so use the address as a temporary name
-                peer_list_lock.add_or_update_peer(addr, addr.to_string());
+                // We don't know the username yet, so use a temporary name
+                // This will be updated when we receive a message from them
+                let temp_name = format!("peer@{}", addr);
+                peer_list_lock.add_or_update_peer(addr, temp_name);
                 new_peers = true;
 
                 // Send a discovery message to this new peer

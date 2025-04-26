@@ -35,12 +35,42 @@ pub async fn listen(
                     // If this is a new message (not seen before), display it
                     if seen_ids.insert(msg.message_id.clone()) {
                         let formatted_time = utils::display_time_from_timestamp(msg.timestamp);
+                        let sender_name = &msg.sender;
+
+                        // Verify the sender's username against our peer list if available
+                        let verified_sender = if let (Some(peer_list), Some(sender_addr)) =
+                            (&peer_list, &msg.sender_addr)
+                        {
+                            if let Ok(socket_addr) = sender_addr.parse::<SocketAddr>() {
+                                let peer_list_lock = peer_list.lock().await;
+                                // Use find_username_by_addr to verify the sender's username
+                                match peer_list_lock.find_username_by_addr(&socket_addr) {
+                                    Some(verified_name) => {
+                                        if &verified_name != sender_name {
+                                            // Username mismatch - use the verified one but note the discrepancy
+                                            format!("{} (claimed: {})", verified_name, sender_name)
+                                        } else {
+                                            // Username matches what we expect
+                                            verified_name
+                                        }
+                                    }
+                                    None => {
+                                        // We don't know this peer yet, use the claimed name but mark as unverified
+                                        format!("{} (unverified)", sender_name)
+                                    }
+                                }
+                            } else {
+                                sender_name.clone()
+                            }
+                        } else {
+                            sender_name.clone()
+                        };
 
                         // Assume terminal width is 80 characters
                         const TERM_WIDTH: usize = 80;
 
                         // Calculate the base message length (sender + content)
-                        let base_msg = format!("[{}]: {}", msg.sender, msg.content);
+                        let base_msg = format!("[{}]: {}", verified_sender, msg.content);
                         let time_display = format!("({})", formatted_time);
 
                         // Calculate padding needed to right-align the timestamp
