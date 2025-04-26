@@ -86,7 +86,7 @@ async fn main() -> std::io::Result<()> {
         Arc::new(UdpSocket::bind(format!("0.0.0.0:{}", DEFAULT_RECV_INIT_PORT)).await?);
 
     // Create a proper socket address with the local IP for peer discovery
-    let local_addr = SocketAddr::new(local_ip, send_port);
+    let local_addr = SocketAddr::new(local_ip, receive_port);
 
     // Prepare shared socket for sending
     let socket_send_clone = socket_send.clone();
@@ -168,16 +168,13 @@ async fn main() -> std::io::Result<()> {
             let msg = Message::new_chat(username.clone(), line, Some(local_addr));
 
             // Get the list of known peers
-            let peers = {
-                let peer_list_lock = peer_list.lock().await;
-                peer_list_lock.get_peers()
-            };
+            let peers = peer_list.lock().await.get_peers();
 
             // Send the message to each known peer
-            for peer in peers {
-                // Use the peer's IP address but with the receive_port
-                let peer_ip = peer.addr.ip();
-                let target_addr = format!("{peer_ip}:{receive_port}");
+            for peer in &peers {
+                // Use the peer's actual address (IP and port)
+                let target_addr = peer.addr.to_string();
+                println!("[DEBUG] Sending chat message to: {}", target_addr);
                 sender::send_message(socket_send_clone.clone(), &msg, &target_addr).await?;
             }
         }
