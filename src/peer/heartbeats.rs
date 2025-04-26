@@ -81,13 +81,13 @@ async fn send_heartbeats(
 /// Checks for peers that haven't been seen recently and removes them
 async fn check_peer_timeouts(peer_list: &SharedPeerList) {
     let timeout = Duration::from_secs(PEER_TIMEOUT);
-    
+
     // First, consolidate peers with the same username and IP
     {
         let mut peer_list = peer_list.lock().await;
         peer_list.consolidate_duplicate_users();
     }
-    
+
     // Then remove stale peers
     let stale_peers = {
         let mut peer_list = peer_list.lock().await;

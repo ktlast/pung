@@ -69,14 +69,14 @@ pub async fn handle_discovery_message(
         if let Ok(addr) = SocketAddr::from_str(addr_str) {
             // Add the peer to our list
             let mut peer_list = peer_list.lock().await;
-            
+
             // Check if this is a new peer or an existing one with a new address
             let is_new = !peer_list.update_last_seen(&addr);
             if is_new {
                 peer_list.add_or_update_peer(addr, msg.sender.clone());
                 println!("New peer discovered: {} ({})", msg.sender, addr);
             }
-            
+
             let socket_clone = socket.clone();
 
             // Send a discovery response back to the peer
@@ -124,7 +124,7 @@ pub async fn handle_peer_list_message(
             if addr == local_addr {
                 continue;
             }
-            
+
             // Skip if this looks like an anonymous peer from another instance
             // This helps prevent the proliferation of anonymous peers
             if addr_str.contains("anonymous@") {
