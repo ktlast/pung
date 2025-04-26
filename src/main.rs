@@ -9,6 +9,7 @@ use message::Message;
 use net::{listener, sender};
 use peer::PeerList;
 use peer::{discovery, heartbeats};
+use rand::RngCore;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::io::{self, AsyncBufReadExt, AsyncWriteExt};
@@ -20,17 +21,16 @@ const DEFAULT_RECV_INIT_PORT: u16 = 9487;
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
     // Parse command line arguments using clap
-    let matches = Command::new("Rossip Chat")
+    let matches = Command::new("pung")
         .version("1.0")
         .author("Your Name")
-        .about("A simple UDP-based chat application")
+        .about("Peer-to-peer UDP Network Gossip.")
         .arg(
             Arg::new("username")
                 .short('u')
                 .long("username")
                 .value_name("USERNAME")
-                .help("Sets the username for chat")
-                .default_value("user"),
+                .help("Sets the username for chat"),
         )
         .arg(
             Arg::new("receive_port")
@@ -42,7 +42,14 @@ async fn main() -> std::io::Result<()> {
         .get_matches();
 
     // Extract values from command line arguments
-    let username = matches.get_one::<String>("username").unwrap().clone();
+    let username = match matches.get_one::<String>("username") {
+        Some(username) => username.clone(),
+        None => {
+            let mut bytes = [0u8; 2];
+            rand::thread_rng().fill_bytes(&mut bytes);
+            format!("user-{}", hex::encode(bytes))
+        }
+    };
 
     // Generate a random port for sending
     let send_port = utils::get_random_port(20000, 30000);
