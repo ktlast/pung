@@ -1,5 +1,4 @@
 use crate::peer::SharedPeerList;
-use std::time::Duration;
 
 pub async fn handle_command(input_line: &str, peer_list: SharedPeerList) -> Option<String> {
     // Extract the command part (first word) for matching
@@ -54,22 +53,12 @@ pub async fn handle_command(input_line: &str, peer_list: SharedPeerList) -> Opti
                 Err(_) => Some("@@@ Invalid index format. Usage: /remove <index>".to_string()),
             }
         }
-        "/cleanup" => {
-            let mut peer_list_lock = peer_list.lock().await;
-            let removed_peers = peer_list_lock.remove_anonymous_peers();
-            
-            if removed_peers.is_empty() {
-                Some("@@@ No anonymous peers found.".to_string())
-            } else {
-                Some(format!("@@@ Removed {} anonymous peers", removed_peers.len()))
-            }
-        }
+
         "/help" => {
             let help_text = "\
             Available commands:
             /peers - Show list of connected peers
             /remove <index> - Remove a peer by its index
-            /cleanup - Remove all anonymous peers
             /help  - Show this help message
             ";
             Some("@@@ ".to_string() + help_text)

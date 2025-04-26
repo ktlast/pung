@@ -18,6 +18,7 @@ pub struct PeerInfo {
 // PeerList to track all known peers
 #[derive(Debug, Clone)]
 pub struct PeerList {
+    // Use a combination of username and address as the key to prevent username conflicts
     peers: HashMap<String, PeerInfo>,
 }
 
@@ -28,6 +29,11 @@ impl PeerList {
         }
     }
 
+    // Generate a unique key for a peer based on username and address
+    fn generate_peer_key(username: &str, addr: &SocketAddr) -> String {
+        format!("{}@{}", username, addr)
+    }
+    
     pub fn add_or_update_peer(&mut self, addr: SocketAddr, username: String) {
         // If username is empty or just an IP address, generate a better name
         let username = if username.is_empty() || username.contains(':') {
@@ -47,13 +53,32 @@ impl PeerList {
             }
         }
 
-        // Update existing peer if username exists, otherwise add new
-        if let Some(existing_peer) = self.peers.get_mut(&username) {
-            existing_peer.addr = addr;
+        // Generate a unique key for this peer
+        let key = Self::generate_peer_key(&username, &addr);
+        
+        // Check if we already have this exact peer
+        if let Some(existing_peer) = self.peers.get_mut(&key) {
+            // Just update the last_seen time
             existing_peer.last_seen = Instant::now();
         } else {
+            // Check if we have another peer with the same address
+            let addr_exists = self.peers.values().any(|peer| peer.addr == addr);
+            
+            // If the address exists, update that peer instead of creating a new one
+            if addr_exists {
+                // Find and remove the old peer entry
+                let old_key = self.peers.iter()
+                    .find(|(_, peer)| peer.addr == addr)
+                    .map(|(key, _)| key.clone());
+                
+                if let Some(old_key) = old_key {
+                    self.peers.remove(&old_key);
+                }
+            }
+            
+            // Add the new peer
             self.peers.insert(
-                username.clone(),
+                key,
                 PeerInfo {
                     addr,
                     username,
@@ -69,8 +94,12 @@ impl PeerList {
 
     pub fn update_last_seen(&mut self, addr: &SocketAddr) -> bool {
         // Find peer by address
-        for peer in self.peers.values_mut() {
-            if &peer.addr == addr {
+        let peer_key = self.peers.iter()
+            .find(|(_, peer)| &peer.addr == addr)
+            .map(|(key, _)| key.clone());
+            
+        if let Some(key) = peer_key {
+            if let Some(peer) = self.peers.get_mut(&key) {
                 peer.last_seen = Instant::now();
                 return true;
             }
@@ -80,9 +109,9 @@ impl PeerList {
 
     // Find a peer by address and return its username if found
     pub fn find_username_by_addr(&self, addr: &SocketAddr) -> Option<String> {
-        for (username, peer) in &self.peers {
+        for (_, peer) in &self.peers {
             if &peer.addr == addr {
-                return Some(username.clone());
+                return Some(peer.username.clone());
             }
         }
         None
@@ -106,19 +135,24 @@ impl PeerList {
     
     pub fn remove_anonymous_peers(&mut self) -> Vec<String> {
         // Find all peers with anonymous in their username
-        let anonymous_peers: Vec<String> = self
+        let anonymous_keys: Vec<String> = self
             .peers
             .iter()
             .filter(|(_, info)| info.username.starts_with("anonymous@"))
-            .map(|(username, _)| username.clone())
+            .map(|(key, _)| key.clone())
             .collect();
 
+        // Keep track of removed usernames for reporting
+        let mut removed_usernames = Vec::new();
+        
         // Remove them from the HashMap
-        for username in &anonymous_peers {
-            self.peers.remove(username);
+        for key in &anonymous_keys {
+            if let Some(peer) = self.peers.remove(key) {
+                removed_usernames.push(peer.username);
+            }
         }
 
-        anonymous_peers
+        removed_usernames
     }
     
     pub fn remove_peer_by_index(&mut self, index: usize) -> Option<PeerInfo> {
@@ -127,11 +161,15 @@ impl PeerList {
         
         // Check if the index is valid
         if index < peers.len() {
-            // Get the username of the peer at the specified index
+            // Get the address and username of the peer at the specified index
+            let addr = peers[index].addr;
             let username = peers[index].username.clone();
             
+            // Generate the key for this peer
+            let key = Self::generate_peer_key(&username, &addr);
+            
             // Remove the peer from the HashMap and return it
-            self.peers.remove(&username)
+            self.peers.remove(&key)
         } else {
             None
         }
