@@ -27,7 +27,7 @@ pub async fn start_heartbeat(
 
         loop {
             interval.tick().await;
-            println!("[DEBUG] Sending heartbeats");
+            log::debug!("[Heartbeat] Sending heartbeats");
             if let Err(e) = send_heartbeats(
                 socket_clone.clone(),
                 &username_clone,
@@ -36,7 +36,7 @@ pub async fn start_heartbeat(
             )
             .await
             {
-                eprintln!("Error sending heartbeats: {}", e);
+                log::error!("Error sending heartbeats: {}", e);
             }
         }
     });
@@ -87,8 +87,8 @@ async fn check_peer_timeouts(peer_list: &SharedPeerList) {
     };
 
     // Log removed peers
-    for addr in stale_peers {
-        println!("Peer timed out and was removed: {}", addr);
+    for username in stale_peers {
+        println!("Peer timed out and was removed: {}", username);
     }
 }
 
@@ -107,7 +107,7 @@ pub async fn handle_heartbeat_message(
             } else {
                 // This is a new peer, add it to our list
                 peer_list.add_or_update_peer(addr, msg.sender.clone());
-                println!("New peer discovered via heartbeat: {}", addr);
+                println!("New peer discovered via heartbeat: {} ({})", msg.sender, addr);
             }
         }
     }

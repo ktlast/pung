@@ -1671,6 +1671,7 @@ dependencies = [
  "clap 4.5.37",
  "dashmap",
  "get_if_addrs",
+ "log",
  "mdns",
  "nanoid",
  "rand",

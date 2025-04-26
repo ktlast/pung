@@ -141,12 +141,7 @@ async fn main() -> std::io::Result<()> {
         .await?;
     }
 
-    // Read user input
-    let peers = {
-        let peer_list_lock = peer_list.lock().await;
-        peer_list_lock.get_peers()
-    };
-    println!("@@@ Known peers: {:?}", peers);
+    println!("@@@ To show known peers, type [/peers]");
     let stdin = io::BufReader::new(io::stdin());
     let mut lines = stdin.lines();
 
@@ -174,7 +169,7 @@ async fn main() -> std::io::Result<()> {
             for peer in &peers {
                 // Use the peer's actual address (IP and port)
                 let target_addr = peer.addr.to_string();
-                println!("[DEBUG] Sending chat message to: {}", target_addr);
+                log::debug!("[Chat] Sending chat message to: {}", target_addr);
                 sender::send_message(socket_send_clone.clone(), &msg, &target_addr).await?;
             }
         }
