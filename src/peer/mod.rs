@@ -92,6 +92,22 @@ impl PeerList {
 
         stale_peers
     }
+    
+    pub fn remove_peer_by_index(&mut self, index: usize) -> Option<PeerInfo> {
+        // Get all peers as a vector
+        let peers = self.get_peers();
+        
+        // Check if the index is valid
+        if index < peers.len() {
+            // Get the username of the peer at the specified index
+            let username = peers[index].username.clone();
+            
+            // Remove the peer from the HashMap and return it
+            self.peers.remove(&username)
+        } else {
+            None
+        }
+    }
 }
 
 // Create a thread-safe shared PeerList
