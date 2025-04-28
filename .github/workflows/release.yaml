@@ -60,3 +60,4 @@ jobs:
       uses: softprops/action-gh-release@v2
       with:
         files: ${{ env.ASSET }}
+        token: ${{ secrets.RELEASE_TOKEN }}
