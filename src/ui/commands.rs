@@ -53,7 +53,7 @@ pub async fn handle_command(input_line: &str, peer_list: SharedPeerList) -> Opti
                 Err(_) => Some("@@@ Invalid index format. Usage: /remove <index>".to_string()),
             }
         }
-
+        "/quit" => Some("exit".to_string()),
         "/help" => {
             let help_text = "\
             Available commands:

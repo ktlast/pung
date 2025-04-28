@@ -177,6 +177,10 @@ async fn main() -> rustyline::Result<()> {
                     if let Some(response) =
                         ui::commands::handle_command(&line, peer_list_clone).await
                     {
+                        if response == "exit" {
+                            println!("@@@ bye!");
+                            break;
+                        }
                         println!("{}", response);
                     }
                 } else if line.is_empty() {
@@ -192,12 +196,10 @@ async fn main() -> rustyline::Result<()> {
                 }
             }
             Err(ReadlineError::Interrupted) => {
-                println!("CTRL-C");
-                break;
+                println!("@@@ Type [/quit] to exit.");
             }
             Err(ReadlineError::Eof) => {
-                println!("CTRL-D");
-                break;
+                println!("@@@ Type [/quit] to exit.");
             }
             Err(err) => {
                 println!("Readline error: {:?}", err);
