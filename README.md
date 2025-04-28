@@ -2,6 +2,24 @@
 Pung is a lightweight intranet chat tool for the command line, operating entirely over UDP. The name is a nod to “ping,” a Caesar cipher of “chat,” and an acronym for Peer-to-peer UDP Network Gossip—or Grapevine, depending on your peer.
 
 
+## How to use
+
+1. Download a release.
+2. Extract the tar.gz file.
+
+For MacOS:
+You may need to remove the quarantine attribute, By GUI or Command:
+```
+version=0.1.0
+sudo xattr -dr com.apple.quarantine pung-${version}-aarch64-apple-darwin
+cd pung-${version}-aarch64-apple-darwin
+```
+
+And then run:
+```
+./pung -u my_name
+```
+
 <br>
 
 ## folder plans (ChatGPT)
