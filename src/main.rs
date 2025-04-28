@@ -19,7 +19,7 @@ use tokio::net::UdpSocket;
 use tokio::sync::Mutex;
 use tokio::task;
 
-const DEFAULT_RECV_INIT_PORT: u16 = 9489;
+const DEFAULT_RECV_INIT_PORT: u16 = 9487;
 
 #[tokio::main]
 async fn main() -> rustyline::Result<()> {

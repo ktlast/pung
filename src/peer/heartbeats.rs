@@ -8,8 +8,8 @@ use tokio::net::UdpSocket;
 use tokio::time;
 
 // Constants for heartbeat
-const HEARTBEAT_INTERVAL: u64 = 15; // seconds
-const PEER_TIMEOUT: u64 = 60; // seconds
+const HEARTBEAT_INTERVAL: u64 = 10; // seconds
+const PEER_TIMEOUT: u64 = 30; // seconds
 
 /// Starts the heartbeat mechanism to maintain peer liveness
 pub async fn start_heartbeat(
