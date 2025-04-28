@@ -10,16 +10,19 @@ use net::{listener, sender};
 use peer::PeerList;
 use peer::{discovery, heartbeats};
 use rand::RngCore;
+use rustyline::DefaultEditor;
+use rustyline::error::ReadlineError;
+use std::io::Write;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tokio::io::{self, AsyncBufReadExt, AsyncWriteExt};
 use tokio::net::UdpSocket;
 use tokio::sync::Mutex;
+use tokio::task;
 
-const DEFAULT_RECV_INIT_PORT: u16 = 9487;
+const DEFAULT_RECV_INIT_PORT: u16 = 9489;
 
 #[tokio::main]
-async fn main() -> std::io::Result<()> {
+async fn main() -> rustyline::Result<()> {
     // Parse command line arguments using clap
     let matches = Command::new("pung")
         .version("1.0")
@@ -149,38 +152,58 @@ async fn main() -> std::io::Result<()> {
     }
 
     println!("@@@ To show known peers, type [/peers]");
-    let stdin = io::BufReader::new(io::stdin());
-    let mut lines = stdin.lines();
+    let rl = Arc::new(Mutex::new(DefaultEditor::new()?));
 
-    while let Ok(Some(line)) = lines.next_line().await {
-        // Clear the line with the user's input by moving cursor up and clearing the line
-        print!("\x1B[1A\x1B[2K"); // ANSI escape code: move up 1 line and clear entire line
-        io::stdout().flush().await?;
-        // Check if the input is a command
-        if line.starts_with("/") {
-            // Handle command
-            let peer_list_clone = peer_list.clone();
-            if let Some(response) = ui::commands::handle_command(&line, peer_list_clone).await {
-                println!("{}", response);
+    loop {
+        let rl_clone = rl.clone();
+        let line_result = task::spawn_blocking(move || {
+            let mut rl = rl_clone.blocking_lock();
+            rl.readline("")
+        })
+        .await
+        .map_err(|e| {
+            rustyline::error::ReadlineError::Io(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("JoinError: {e}"),
+            ))
+        })?; // handle JoinError (maybe caused by panic etc)
+
+        match line_result {
+            Ok(line) => {
+                print!("\x1B[1A\x1B[2K");
+                std::io::stdout().flush()?;
+                if line.starts_with("/") {
+                    let peer_list_clone = peer_list.clone();
+                    if let Some(response) =
+                        ui::commands::handle_command(&line, peer_list_clone).await
+                    {
+                        println!("{}", response);
+                    }
+                } else if line.is_empty() {
+                    continue;
+                } else {
+                    let msg = Message::new_chat(username.clone(), line, Some(local_addr));
+                    let peers = peer_list.lock().await.get_peers();
+                    for peer in &peers {
+                        let target_addr = peer.addr.to_string();
+                        log::debug!("[Chat] Sending chat message to: {}", target_addr);
+                        sender::send_message(socket_send_clone.clone(), &msg, &target_addr).await?;
+                    }
+                }
             }
-        } else if line.is_empty() {
-            // Do nothing
-        } else {
-            // Create a chat message
-            let msg = Message::new_chat(username.clone(), line, Some(local_addr));
-
-            // Get the list of known peers
-            let peers = peer_list.lock().await.get_peers();
-
-            // Send the message to each known peer
-            for peer in &peers {
-                // Use the peer's actual address (IP and port)
-                let target_addr = peer.addr.to_string();
-                log::debug!("[Chat] Sending chat message to: {}", target_addr);
-                sender::send_message(socket_send_clone.clone(), &msg, &target_addr).await?;
+            Err(ReadlineError::Interrupted) => {
+                println!("CTRL-C");
+                break;
+            }
+            Err(ReadlineError::Eof) => {
+                println!("CTRL-D");
+                break;
+            }
+            Err(err) => {
+                println!("Readline error: {:?}", err);
+                break;
             }
         }
     }
-
     Ok(())
 }
