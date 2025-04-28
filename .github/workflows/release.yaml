@@ -5,6 +5,7 @@ on:
   push:
     tags:
     - '[0-9]+.[0-9]+.[0-9]+'
+    branches: ["master"]
 
 env:
   BIN_NAME: pung
