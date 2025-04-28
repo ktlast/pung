@@ -10,30 +10,12 @@ env:
   BIN_NAME: pung
 
 jobs:
-  create-release:
-    name: create-release
-    runs-on: ubuntu-latest
-    outputs:
-      upload_url: ${{ steps.release.outputs.upload_url }}
-      release_version: ${{ steps.release.outputs.automatic_releases_tag }}
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 1
-    - name: Create GitHub release
-      id: release
-      uses: marvinpinto/action-automatic-releases@latest
-      with:
-        repo_token: "${{ secrets.GITHUB_TOKEN }}"
-        prerelease: false
   build-release:
     name: build-release
-    needs: create-release
     strategy:
       fail-fast: false
       matrix:
-        build: [linux, macos]
+        build: [linux, macos, macos-arm64]
         include:
         - build: linux
           os: ubuntu-latest
@@ -43,22 +25,20 @@ jobs:
           os: macos-latest
           rust: stable
           target: x86_64-apple-darwin
+        - build: macos-arm64
+          os: macos-latest
+          rust: stable
+          target: aarch64-apple-darwin
     runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
-      with:
-        fetch-depth: 1
-    - name: Install packages (Ubuntu)
-      if: matrix.os == 'ubuntu-latest'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y --no-install-recommends xz-utils liblz4-tool libssl-dev
     - name: Setup Rust
       uses: actions-rust-lang/setup-rust-toolchain@v1
       with:
         toolchain: ${{ matrix.rust }}
         targets: ${{ matrix.target }}
+
 
     - name: Build release binary
       run: cargo build --target ${{ matrix.target }} --verbose --release --bin ${{ env.BIN_NAME }}
@@ -66,18 +46,14 @@ jobs:
       shell: bash
       run: |
         outdir="./target/${{ env.TARGET_DIR }}/release"
-        staging="${{ env.BIN_NAME }}-${{ needs.create-release.outputs.release_version }}-${{ matrix.target }}"
+        staging="${{ env.BIN_NAME }}-${{ github.ref_name }}-${{ matrix.target }}"
         mkdir -p "$staging"
         cp {README.md,LICENSE} "$staging/"
         cp "target/${{ matrix.target }}/release/${{ env.BIN_NAME }}" "$staging/"
         tar czf "$staging.tar.gz" -C "$staging" .
         echo "ASSET=$staging.tar.gz" >> $GITHUB_ENV
-    - name: Upload release archive
-      uses: actions/upload-release-asset@v1.0.2
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Release
+      uses: softprops/action-gh-release@v2
       with:
-        upload_url: ${{ needs.create-release.outputs.upload_url }}
-        asset_path: ${{ env.ASSET }}
-        asset_name: ${{ env.ASSET }}
-        asset_content_type: application/octet-stream
+        files: ${{ env.ASSET }}
