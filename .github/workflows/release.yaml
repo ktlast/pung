@@ -3,9 +3,8 @@ name: "Release"
 
 on:
   push:
-    # tags:
-    # - '[0-9]+.[0-9]+.[0-9]+'
-    branches: ["master"]
+    tags:
+    - '[0-9]+.[0-9]+.[0-9]+'
 
 env:
   BIN_NAME: pung
