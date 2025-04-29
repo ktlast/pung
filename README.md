@@ -60,6 +60,23 @@ mkdir -p ${full_name} \
 
 <br>
 
+## How it works
+
+### Steps
+
+1. Allocate arguments and UDP socket
+2. Start listeners for receiving chat, discovery, and heartbeat messages.
+3. Broadcast to the common receive ports, try to find other peers.
+4. Once found, record their addresses.
+5. Start a UI thread for user input and send messages to each peer.
+
+Events:
+- If received a chat message, display it in the UI.
+- If received a discovery message, add the peer to the peer list, then respond to the new peer.
+- If received a heartbeat message, update the peer's last seen time.
+
+<br>
+
 
 ## Appendix: Architecture Notes (Design thoughts from ChatGPT)
 
