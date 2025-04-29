@@ -6,7 +6,7 @@ pub async fn handle_command(input_line: &str, peer_list: SharedPeerList) -> Opti
     let command = input_line.split_whitespace().next().unwrap_or("");
 
     match command {
-        "/peers" => {
+        "/peers" | "/p" => {
             let peers = peer_list.lock().await.get_peers();
             if peers.is_empty() {
                 Some("@@@ No peers connected.".to_string())
@@ -28,7 +28,7 @@ pub async fn handle_command(input_line: &str, peer_list: SharedPeerList) -> Opti
                 Some(response)
             }
         }
-        "/remove" => {
+        "/remove" | "/rm" => {
             // Parse the index from the command
             let parts: Vec<&str> = input_line.split_whitespace().collect();
             if parts.len() != 2 {
@@ -54,24 +54,24 @@ pub async fn handle_command(input_line: &str, peer_list: SharedPeerList) -> Opti
                 Err(_) => Some("@@@ Invalid index format. Usage: /remove <index>".to_string()),
             }
         }
-        "/quit" => Some("exit".to_string()),
-        "/help" => {
+        "/quit" | "/q" => Some("exit".to_string()),
+        "/help" | "/h" => {
             let help_text = "\
         help?
         Available commands:
-            /peers          - Show list of connected peers
-            /remove <index> - Remove a peer by its index
-            /help           - Show this help message
-            /version        - Show version
-            /quit           - Quit the application
+            /[ p | peers ]           - Show list of connected peers
+            /[ rm | remove ] <index> - Remove a peer by its index
+            /[ h | help ]            - Show this help message
+            /[ v | version ]         - Show version
+            /[ q | quit ]            - Quit the application
 
         Legend of prefixes:
-            @@@             - Normal system messages
-            ###             - Peer related system messages
+            @@@                      - Normal system messages
+            ###                      - Peer related events
             ";
             Some("@@@ ".to_string() + help_text)
         }
-        "/version" => Some(format!("@@@ Version: {}", VERSION)),
+        "/version" | "/v" => Some(format!("@@@ Version: {}", VERSION)),
         _ => {
             if input_line.starts_with("/") {
                 // Unknown command starting with /
