@@ -42,6 +42,13 @@ async fn main() -> rustyline::Result<()> {
                 .value_name("PORT")
                 .help("Sets the port for receiving messages (random if not specified)"),
         )
+        .arg(
+            Arg::new("terminal_width")
+                .short('w')
+                .long("width")
+                .value_name("WIDTH")
+                .help("Sets the terminal width for message display (default: 80)"),
+        )
         .get_matches();
 
     // Extract values from command line arguments
@@ -63,6 +70,12 @@ async fn main() -> rustyline::Result<()> {
             .parse::<u16>()
             .unwrap_or_else(|_| utils::get_random_port(10000, 20000)),
         None => utils::get_random_port(10000, 20000),
+    };
+
+    // Get terminal width from command-line arguments or use default
+    let terminal_width = match matches.get_one::<String>("terminal_width") {
+        Some(width_str) => width_str.parse::<usize>().unwrap_or(80),
+        None => 80,
     };
 
     // We'll broadcast to all common receive ports to ensure all instances receive our messages
@@ -107,12 +120,14 @@ async fn main() -> rustyline::Result<()> {
         let peer_list_clone = peer_list.clone();
         let username_clone = username.clone();
 
+        let terminal_width_clone = terminal_width;
         tokio::spawn(async move {
             if let Err(e) = listener::listen(
                 recv_socket.clone(),
                 Some(peer_list_clone),
                 Some(username_clone),
                 Some(local_addr),
+                Some(terminal_width_clone),
             )
             .await
             {
