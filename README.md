@@ -4,64 +4,79 @@ Pung is a lightweight intranet chat tool for the command line, operating entirel
 
 ## How to use
 
-1. Download a release.
+### For MacOS
+#### Option 1: GUI
+1. Download a release from [GitHub](https://github.com/ktlast/pung/releases).
 2. Extract the tar.gz file.
+3. Open terminal and navigate to the extracted directory. You can try `./pung -u my_name` to see if it works.
+4. If it doesn't work, open System Settings -> Security & Privacy -> General -> Allow apps downloaded from ...
+5. Run `./pung -u my_name` again
 
-For MacOS:
-You may need to remove the quarantine attribute, By GUI or Command:
-```
-version=0.1.0
-sudo xattr -dr com.apple.quarantine pung-${version}-aarch64-apple-darwin
-cd pung-${version}-aarch64-apple-darwin
+#### Option 2: Pure Command
+You may need to remove the quarantine attribute after downloading:
+```bash
+# Check if jq is installed, since we need it to parse the latest version.
+command -v jq >/dev/null 2>&1 || { echo >&2 "Please install jq first."; exit 1; }
+
+# Get the latest version from GitHub API
+version=$(curl -s https://api.github.com/repos/ktlast/pung/releases/latest | jq -r '.tag_name')
+full_name="pung-${version}-aarch64-apple-darwin"
+
+# Download the latest release
+download_url="https://github.com/ktlast/pung/releases/download/${version}/${full_name}.tar.gz"
+curl -L ${download_url} -o ${full_name}.tar.gz
+mkdir -p ${full_name} \
+    && tar -xzf ${full_name}.tar.gz -C ${full_name} \
+    && cd ${full_name}
+
+# Remove quarantine attribute
+sudo xattr -d com.apple.quarantine ./pung
+
+# Start the app
+./pung -u my_name
 ```
 
-And then run:
-```
+
+### For Linux
+
+```bash
+# check if jq is installed
+command -v jq >/dev/null 2>&1 || { echo >&2 "Please install jq first."; exit 1; }
+
+# Get the latest version from GitHub API
+version=$(curl -s https://api.github.com/repos/ktlast/pung/releases/latest | jq -r '.tag_name')
+full_name="pung-${version}-x86_64-unknown-linux-gnu"
+
+# Download the latest release
+download_url="https://github.com/ktlast/pung/releases/download/${version}/${full_name}.tar.gz"
+curl -L ${download_url} -o ${full_name}.tar.gz
+mkdir -p ${full_name} \
+    && tar -xzf ${full_name}.tar.gz -C ${full_name} \
+    && cd ${full_name}
+
+# Start the app
 ./pung -u my_name
 ```
 
 <br>
 
-## folder plans (ChatGPT)
+## How it works
 
-- file structure
-```
-pung/
-├── Cargo.toml
-├── src/
-│   ├── main.rs               # entry point, sets up the async runtime
-│   ├── config.rs             # config structs, constants, CLI args if needed
-│   ├── message.rs            # message format + (de)serialization, message ID logic
-│   ├── peer/
-│   │   ├── mod.rs            # peer list manager, discovery, heartbeat
-│   │   ├── discovery.rs      # mDNS or UDP "hello" logic
-│   │   ├── tracker.rs        # heartbeat, timeouts, peer liveness
-│   ├── net/
-│   │   ├── mod.rs            # UDP socket setup
-│   │   ├── broadcaster.rs    # sending messages to peers
-│   │   ├── listener.rs       # receives + parses incoming messages
-│   ├── ui/
-│   │   ├── mod.rs            # user I/O manager (CLI input/output)
-│   │   ├── input.rs          # reads user input from terminal
-│   │   ├── output.rs         # displays messages to terminal
-│   ├── utils.rs              # message ID cache, timestamp utils, etc.
-```
+### Steps
 
-- crates maybe needed
-```
-[dependencies]
-tokio = { version = "1", features = ["full"] }
-serde = { version = "1", features = ["derive"] }
-bincode = "1.3"
-dashmap = "5"
-uuid = { version = "1", features = ["v4"] }
-socket2 = "0.5"
-mdns = "1.0"  # optional, or use `async-mdns`
-clap = "4"    # optional, CLI arg parsing
-chrono = "0.4"  # timestamps and timeouts
-```
+1. Allocate arguments and UDP socket
+2. Start listeners for receiving chat, discovery, and heartbeat messages.
+3. Broadcast to the common receive ports, try to find other peers.
+4. Once found, record their addresses.
+5. Start a UI thread for user input and send messages to each peer.
+
+Events:
+- If received a chat message, display it in the UI.
+- If received a discovery message, add the peer to the peer list, then respond to the new peer.
+- If received a heartbeat message, update the peer's last seen time.
 
 <br>
+
 
 ## Appendix: Architecture Notes (Design thoughts from ChatGPT)
 
