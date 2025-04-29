@@ -20,13 +20,13 @@ use tokio::sync::Mutex;
 use tokio::task;
 
 const DEFAULT_RECV_INIT_PORT: u16 = 9487;
-const VERSION: &str = "1.0";
+const VERSION: &str = "0.1.0";
 
 #[tokio::main]
 async fn main() -> rustyline::Result<()> {
     // Parse command line arguments using clap
     let matches = Command::new("pung")
-        .version("1.0")
+        .version(VERSION)
         .author("Your Name")
         .about("Peer-to-peer UDP Network Gossip.")
         .arg(
@@ -91,7 +91,7 @@ async fn main() -> rustyline::Result<()> {
     tokio::spawn(async move {
         if let Some(latest_version) = utils::check_for_updates(VERSION).await {
             println!(
-                "@@@ New version available: {}! Current version: {}",
+                "@@@ New version available: [{}]! Current version: [{}]",
                 latest_version, VERSION
             );
             println!(
