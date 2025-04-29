@@ -62,19 +62,16 @@ install () {
     case $OS in
         macos)
             lib.debug "Installing Pung for MacOS..."
-            lib.info "Current Directory: $(pwd)"
             full_name="pung-${version}-aarch64-apple-darwin"
             utils.is_already_installed "${full_name}" && lib.die "Pung is already installed."
 
             # Download the latest release
             download_url="https://github.com/ktlast/pung/releases/download/${version}/${full_name}.tar.gz"
-            curl -L "${download_url}" -o "${full_name}".tar.gz
+            curl -sL "${download_url}" -o "${full_name}".tar.gz
 
             # Prepare the directory
             mkdir -p "${full_name}" \
-                && tar -xzf "${full_name}".tar.gz -C "${full_name}" \
-                && cd "${full_name}" || exit
-            lib.info "Switched to Directory: $(pwd)"
+                && tar -xzf "${full_name}".tar.gz -C "${full_name}"
 
 
             #############################################################
@@ -88,7 +85,7 @@ install () {
             lib.important "    sudo xattr -d com.apple.quarantine ./pung"
             lib.important "If you are not sure what this means, please press Ctrl+C to exit."
             echo
-            read -rp "Press Enter to continue..."
+            read -rp "Press Enter to continue..." </dev/tty
             sudo xattr -d com.apple.quarantine ./pung
 
             # Make sure it is executable
@@ -96,20 +93,16 @@ install () {
             ;;
         linux)
             lib.debug "Installing Pung for Linux..."
-            lib.info "Current Directory: $(pwd)"
             full_name="pung-${version}-x86_64-unknown-linux-gnu"
             utils.is_already_installed "${full_name}" && lib.die "Pung is already installed."
 
             # Download the latest release
             download_url="https://github.com/ktlast/pung/releases/download/${version}/${full_name}.tar.gz"
-            curl -L "${download_url}" -o "${full_name}".tar.gz
+            curl -sL "${download_url}" -o "${full_name}".tar.gz
 
             # Prepare the directory
             mkdir -p "${full_name}" \
-                && tar -xzf "${full_name}".tar.gz -C "${full_name}" \
-                && cd "${full_name}" || exit
-
-            lib.info "Switched to Directory: $(pwd)"
+                && tar -xzf "${full_name}".tar.gz -C "${full_name}"
 
             # Make sure it is executable
             [[ -x ./pung ]] || lib.die "Before running Pung, please make sure it is executable. (run 'chmod +x ./pung')"
