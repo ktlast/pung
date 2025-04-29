@@ -86,10 +86,10 @@ install () {
             lib.important "If you are not sure what this means, please press Ctrl+C to exit."
             echo
             read -rp "Press Enter to continue..." </dev/tty
-            sudo xattr -d com.apple.quarantine ./pung
+            sudo xattr -d com.apple.quarantine "${full_name}/pung"
 
             # Make sure it is executable
-            [[ -x ./pung ]] || lib.die "Before running Pung, please make sure it is executable. (run 'chmod +x ./pung')"
+            [[ -x "${full_name}/pung" ]] || lib.die "Before running Pung, please make sure it is executable. (run 'chmod +x ./pung')"
             ;;
         linux)
             lib.debug "Installing Pung for Linux..."
@@ -98,14 +98,14 @@ install () {
 
             # Download the latest release
             download_url="https://github.com/ktlast/pung/releases/download/${version}/${full_name}.tar.gz"
-            curl -sL "${download_url}" -o "${full_name}".tar.gz
+            curl -sL "${download_url}" -o "${full_name}.tar.gz"
 
             # Prepare the directory
             mkdir -p "${full_name}" \
-                && tar -xzf "${full_name}".tar.gz -C "${full_name}"
+                && tar -xzf "${full_name}.tar.gz" -C "${full_name}"
 
             # Make sure it is executable
-            [[ -x ./pung ]] || lib.die "Before running Pung, please make sure it is executable. (run 'chmod +x ./pung')"
+            [[ -x "${full_name}/pung" ]] || lib.die "Before running Pung, please make sure it is executable. (run 'chmod +x ./pung')"
             ;;
         *)
             lib.die "Unsupported OS (checked by [uname -s]). Please use MacOS or Linux."
