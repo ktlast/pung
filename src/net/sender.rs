@@ -8,7 +8,8 @@ pub async fn send_message(
     msg: &Message,
     addr: &str,
 ) -> std::io::Result<()> {
-    let encoded = bincode::serialize(msg).expect("Failed to encode message");
+    let encoded =
+        bincode::encode_to_vec(msg, bincode::config::standard()).expect("Failed to encode message");
     socket.send_to(&encoded, addr).await?;
     Ok(())
 }

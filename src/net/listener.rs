@@ -27,7 +27,9 @@ pub async fn listen(
 
     loop {
         let (len, addr) = socket_clone.clone().recv_from(&mut buf).await?;
-        if let Ok(msg) = bincode::deserialize::<Message>(&buf[..len]) {
+        if let Ok((msg, _)) =
+            bincode::decode_from_slice::<Message, _>(&buf[..len], bincode::config::standard())
+        {
             // Check if we've already seen this message
             let mut seen_ids = seen_message_ids.lock().await;
 
@@ -153,7 +155,9 @@ pub async fn listen_for_init(
             .clone()
             .recv_from(&mut buf)
             .await?;
-        if let Ok(msg) = bincode::deserialize::<Message>(&buf[..len]) {
+        if let Ok((msg, _)) =
+            bincode::decode_from_slice::<Message, _>(&buf[..len], bincode::config::standard())
+        {
             // Process the message based on its type
             if let MessageType::Discovery = msg.msg_type {
                 // DEBUG: Display discovery message

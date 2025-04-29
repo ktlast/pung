@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
+use bincode::{Decode, Encode};
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Encode, Decode)]
 pub enum MessageType {
     Chat,
     Discovery,
@@ -9,7 +10,7 @@ pub enum MessageType {
     PeerList,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Encode, Decode)]
 pub struct Message {
     pub sender: String,
     pub content: String,
