@@ -9,6 +9,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::UdpSocket;
 use tokio::sync::Mutex;
+use unicode_width::UnicodeWidthStr;
 
 pub async fn listen(
     socket: Arc<UdpSocket>,
@@ -71,12 +72,15 @@ pub async fn listen(
 
                         // Calculate the base message length (sender + content)
                         let base_msg = format!("[{}]: {}", verified_sender, msg.content);
-                        let time_display = format!("({})", formatted_time);
+                        let time_display = format!(" ({})", formatted_time);
 
                         // Calculate padding needed to right-align the timestamp
+                        // Use UnicodeWidthStr to get the correct display width for multi-byte characters
+                        let base_msg_width = UnicodeWidthStr::width(base_msg.as_str());
+                        let time_display_width = UnicodeWidthStr::width(time_display.as_str());
                         let padding = TERM_WIDTH
-                            .saturating_sub(base_msg.len())
-                            .saturating_sub(time_display.len());
+                            .saturating_sub(base_msg_width)
+                            .saturating_sub(time_display_width);
 
                         // Format with proper padding
                         println!("{}{}{}", base_msg, " ".repeat(padding), time_display);
