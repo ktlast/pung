@@ -9,12 +9,14 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::UdpSocket;
 use tokio::sync::Mutex;
+use unicode_width::UnicodeWidthStr;
 
 pub async fn listen(
     socket: Arc<UdpSocket>,
     peer_list: Option<SharedPeerList>,
     username: Option<String>,
     local_addr: Option<SocketAddr>,
+    terminal_width: Option<usize>,
 ) -> std::io::Result<()> {
     let mut buf = [0u8; 1024];
 
@@ -66,17 +68,20 @@ pub async fn listen(
                             sender_name.clone()
                         };
 
-                        // Assume terminal width is 80 characters
-                        const TERM_WIDTH: usize = 80;
+                        // Use provided terminal width or default to 80 characters
+                        let term_width = terminal_width.unwrap_or(80);
 
                         // Calculate the base message length (sender + content)
                         let base_msg = format!("[{}]: {}", verified_sender, msg.content);
-                        let time_display = format!("({})", formatted_time);
+                        let time_display = format!(" ({})", formatted_time);
 
                         // Calculate padding needed to right-align the timestamp
-                        let padding = TERM_WIDTH
-                            .saturating_sub(base_msg.len())
-                            .saturating_sub(time_display.len());
+                        // Use UnicodeWidthStr to get the correct display width for multi-byte characters
+                        let base_msg_width = UnicodeWidthStr::width(base_msg.as_str());
+                        let time_display_width = UnicodeWidthStr::width(time_display.as_str());
+                        let padding = term_width
+                            .saturating_sub(base_msg_width)
+                            .saturating_sub(time_display_width);
 
                         // Format with proper padding
                         println!("{}{}{}", base_msg, " ".repeat(padding), time_display);
