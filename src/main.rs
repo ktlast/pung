@@ -20,6 +20,7 @@ use tokio::sync::Mutex;
 use tokio::task;
 
 const DEFAULT_RECV_INIT_PORT: u16 = 9487;
+const VERSION: &str = "1.0";
 
 #[tokio::main]
 async fn main() -> rustyline::Result<()> {
@@ -85,6 +86,19 @@ async fn main() -> rustyline::Result<()> {
         "@@@ Starting pung with username={}, send_port={}, recv_port={}",
         username, send_port, receive_port
     );
+
+    // Check for updates in a separate task to avoid blocking startup
+    tokio::spawn(async move {
+        if let Some(latest_version) = utils::check_for_updates(VERSION).await {
+            println!(
+                "@@@ New version available: {}! Current version: {}",
+                latest_version, VERSION
+            );
+            println!(
+                "@@@ Download the latest version from: https://github.com/ktlast/pung/releases/latest"
+            );
+        }
+    });
 
     // Create shared peer list for tracking peers
     let peer_list = Arc::new(Mutex::new(PeerList::new()));
