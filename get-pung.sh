@@ -117,11 +117,12 @@ main () {
     precheck
     install
     lib.info "Pung is installed successfully."
-    lib.info "Run
+    lib.info "Run following command to start it:
+
         cd ${full_name}
         ./pung -u your_name
-    to start it."
-    lib.info "Check './pung --help' for more information."
+"
+    lib.info "Check '${full_name}/pung --help' for more information."
 }
 
 main
