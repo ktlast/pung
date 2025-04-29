@@ -20,7 +20,9 @@ use tokio::sync::Mutex;
 use tokio::task;
 
 const DEFAULT_RECV_INIT_PORT: u16 = 9487;
-const VERSION: &str = "0.1.0";
+
+// Get version from Cargo.toml
+const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[tokio::main]
 async fn main() -> rustyline::Result<()> {
