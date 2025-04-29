@@ -48,6 +48,40 @@ pub fn get_local_ip() -> Option<IpAddr> {
 
 /// Generate a random port number within the specified range
 pub fn get_random_port(min: u16, max: u16) -> u16 {
-    let mut rng = rand::thread_rng();
-    rng.gen_range(min..=max)
+    let mut rng = rand::rng();
+    rng.random_range(min..=max)
+}
+
+/// Check if a new version is available on GitHub
+/// Returns Some(latest_version) if a newer version is available, None otherwise or on error
+pub async fn check_for_updates(current_version: &str) -> Option<String> {
+    // GitHub API URL for the latest release
+    let url = "https://api.github.com/repos/ktlast/pung/releases/latest";
+
+    // Send request with proper User-Agent header (required by GitHub API)
+    match reqwest::Client::new()
+        .get(url)
+        .header("User-Agent", format!("pung/{}", current_version))
+        .send()
+        .await
+    {
+        Ok(response) => {
+            if response.status().is_success() {
+                // Parse the JSON response
+                if let Ok(json) = response.json::<serde_json::Value>().await {
+                    // Extract the tag_name (version) from the response
+                    if let Some(tag_name) = json.get("tag_name").and_then(|v| v.as_str()) {
+                        let latest_version = tag_name.trim_start_matches('v');
+
+                        // Compare versions (simple string comparison, assumes semver format)
+                        if latest_version != current_version {
+                            return Some(latest_version.to_string());
+                        }
+                    }
+                }
+            }
+            None
+        }
+        Err(_) => None,
+    }
 }
