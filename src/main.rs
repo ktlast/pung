@@ -57,7 +57,7 @@ async fn main() -> rustyline::Result<()> {
         Some(username) => username.clone(),
         None => {
             let mut bytes = [0u8; 2];
-            rand::thread_rng().fill_bytes(&mut bytes);
+            rand::rng().fill_bytes(&mut bytes);
             format!("user-{}", hex::encode(bytes))
         }
     };

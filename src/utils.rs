@@ -48,8 +48,8 @@ pub fn get_local_ip() -> Option<IpAddr> {
 
 /// Generate a random port number within the specified range
 pub fn get_random_port(min: u16, max: u16) -> u16 {
-    let mut rng = rand::thread_rng();
-    rng.gen_range(min..=max)
+    let mut rng = rand::rng();
+    rng.random_range(min..=max)
 }
 
 /// Check if a new version is available on GitHub
