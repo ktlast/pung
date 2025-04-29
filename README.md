@@ -3,6 +3,15 @@ Pung is a lightweight intranet chat tool for the command line, operating entirel
 
 
 ## How to use
+### One liner
+```bash
+bash <(curl -s https://raw.githubusercontent.com/ktlast/pung/main/get-pung.sh)
+```
+
+- You can read the script [here](https://github.com/ktlast/pung/blob/master/get-pung.sh).
+- Or read description below.
+
+<br>
 
 ### For MacOS
 #### Option 1: GUI
