@@ -54,7 +54,7 @@ pub async fn handle_discovery_message(
             let is_new = !peer_list.update_last_seen(&addr);
             if is_new {
                 peer_list.add_or_update_peer(addr, msg.sender.clone());
-                println!("New peer discovered: {} ({})", msg.sender, addr);
+                println!("### New peer discovered: {} ({})", msg.sender, addr);
             }
 
             let socket_clone = socket.clone();
@@ -132,7 +132,7 @@ pub async fn handle_peer_list_message(
 
     // If we added new peers, log it
     if new_peers {
-        println!("Discovered new peers from peer list");
+        println!("### Discovered new peers from peer list");
     }
 
     Ok(())

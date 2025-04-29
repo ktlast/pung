@@ -96,7 +96,7 @@ async fn check_peer_timeouts(peer_list: &SharedPeerList) {
 
     // Log removed peers
     for username in stale_peers {
-        println!("Peer timed out and was removed: {}", username);
+        println!("### Peer timed out and was removed: {}", username);
     }
 }
 
@@ -141,7 +141,7 @@ pub async fn handle_heartbeat_message(
                     // This is a genuinely new peer
                     peer_list.add_or_update_peer(addr, msg.sender.clone());
                     println!(
-                        "New peer discovered via heartbeat: {} ({})",
+                        "### New peer discovered via heartbeat: {} ({})",
                         msg.sender, addr
                     );
                 }
