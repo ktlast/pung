@@ -1,3 +1,4 @@
+use crate::VERSION;
 use crate::peer::SharedPeerList;
 
 pub async fn handle_command(input_line: &str, peer_list: SharedPeerList) -> Option<String> {
@@ -56,13 +57,21 @@ pub async fn handle_command(input_line: &str, peer_list: SharedPeerList) -> Opti
         "/quit" => Some("exit".to_string()),
         "/help" => {
             let help_text = "\
-            Available commands:
-            /peers - Show list of connected peers
+        help?
+        Available commands:
+            /peers          - Show list of connected peers
             /remove <index> - Remove a peer by its index
-            /help  - Show this help message
+            /help           - Show this help message
+            /version        - Show version
+            /quit           - Quit the application
+
+        Legend of prefixes:
+            @@@             - Normal system messages
+            ###             - Peer related system messages
             ";
             Some("@@@ ".to_string() + help_text)
         }
+        "/version" => Some(format!("@@@ Version: {}", VERSION)),
         _ => {
             if input_line.starts_with("/") {
                 // Unknown command starting with /
