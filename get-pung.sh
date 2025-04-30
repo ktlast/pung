@@ -1,6 +1,7 @@
 #!/bin/bash
 
 OS=""
+FLAG_IS_ARCHIVED_OLD_VERSION=false
 
 lib.debug() {
     echo "[DEBUG] $1" >&2
@@ -51,8 +52,19 @@ utils.get_latest_version() {
 utils.is_already_installed() {
     local full_name
     full_name=$1
-    [[ -d "${full_name}" ]] && [[ -x "${full_name}/pung" ]] && return 0
+    [[ -d "${full_name}" ]] && return 0
     return 1
+}
+
+utils.archive_old_version() {
+    local full_name backup_name
+    full_name=$1
+    backup_name="${full_name}.$(date +%Y%m%d%H%M%S).backup"
+    if [[ -d "${full_name}" ]]; then
+        lib.debug "Found old version: ${full_name}, archiving it to [${backup_name}]"
+        mv "${full_name}" "${backup_name}"
+        FLAG_IS_ARCHIVED_OLD_VERSION=true
+    fi
 }
 
 install () {
@@ -63,7 +75,7 @@ install () {
         macos)
             lib.debug "Installing Pung for MacOS..."
             full_name="pung-${version}-aarch64-apple-darwin"
-            utils.is_already_installed "${full_name}" && lib.die "Pung is already installed."
+            utils.is_already_installed "${full_name}" && utils.archive_old_version "${full_name}"
 
             # Download the latest release
             download_url="https://github.com/ktlast/pung/releases/download/${version}/${full_name}.tar.gz"
@@ -76,7 +88,7 @@ install () {
 
             #############################################################
             # IMPORTANT:
-            #   - Users may be block by Mac for security reasons.
+            #   - Users may be blocked by Mac for security reasons.
             #     Run this command to remove the quarantine attribute.
             #   - Read more in the README.md for more details.
             #############################################################
@@ -94,7 +106,7 @@ install () {
         linux)
             lib.debug "Installing Pung for Linux..."
             full_name="pung-${version}-x86_64-unknown-linux-gnu"
-            utils.is_already_installed "${full_name}" && lib.die "Pung is already installed."
+            utils.is_already_installed "${full_name}" && utils.archive_old_version "${full_name}"
 
             # Download the latest release
             download_url="https://github.com/ktlast/pung/releases/download/${version}/${full_name}.tar.gz"
@@ -123,6 +135,9 @@ main () {
         ./pung -u your_name
 "
     lib.info "Check '${full_name}/pung --help' for more information."
+    if [[ "${FLAG_IS_ARCHIVED_OLD_VERSION}" == "true" ]]; then
+        lib.info "Old version is archived to [${full_name}.old.$(date +%Y%m%d%H%M%S).backup]"
+    fi
 }
 
 main
