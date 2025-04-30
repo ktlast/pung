@@ -1,5 +1,14 @@
 use crate::VERSION;
 use crate::peer::SharedPeerList;
+use std::sync::atomic::{AtomicBool, Ordering};
+
+// Global flag to track mDNS status
+static MDNS_ENABLED: AtomicBool = AtomicBool::new(false);
+
+/// Set the mDNS enabled status
+pub fn set_mdns_status(enabled: bool) {
+    MDNS_ENABLED.store(enabled, Ordering::SeqCst);
+}
 
 pub async fn handle_command(input_line: &str, peer_list: SharedPeerList) -> Option<String> {
     // Extract the command part (first word) for matching
@@ -63,6 +72,7 @@ pub async fn handle_command(input_line: &str, peer_list: SharedPeerList) -> Opti
             /[ rm | remove ] <index> - Remove a peer by its index
             /[ h | help ]            - Show this help message
             /[ v | version ]         - Show version
+            /mdns                    - Show mDNS service status
             /[ q | quit ]            - Quit the application
 
         Legend of prefixes:
@@ -72,6 +82,14 @@ pub async fn handle_command(input_line: &str, peer_list: SharedPeerList) -> Opti
             Some("@@@ ".to_string() + help_text)
         }
         "/version" | "/v" => Some(format!("@@@ Version: {}", VERSION)),
+        "/mdns" => {
+            let status = if MDNS_ENABLED.load(Ordering::SeqCst) {
+                "enabled"
+            } else {
+                "disabled or failed to initialize"
+            };
+            Some(format!("@@@ mDNS status: {}", status))
+        }
         _ => {
             if input_line.starts_with("/") {
                 // Unknown command starting with /
