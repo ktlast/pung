@@ -88,7 +88,7 @@ install () {
 
             #############################################################
             # IMPORTANT:
-            #   - Users may be block by Mac for security reasons.
+            #   - Users may be blocked by Mac for security reasons.
             #     Run this command to remove the quarantine attribute.
             #   - Read more in the README.md for more details.
             #############################################################
