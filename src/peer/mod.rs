@@ -1,5 +1,6 @@
 pub mod discovery;
 pub mod heartbeats;
+pub mod mdns_discovery;
 
 use std::collections::HashMap;
 use std::net::SocketAddr;
