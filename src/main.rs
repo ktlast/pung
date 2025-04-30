@@ -170,32 +170,40 @@ async fn main() -> rustyline::Result<()> {
         // Start mDNS service registration
         println!("@@@ Starting mDNS service registration...");
         let username_clone = username.clone();
-        match mdns_discovery::start_mdns_service(username_clone, receive_port).await {
-            Ok(_service) => {
-                println!("@@@ mDNS service registered successfully");
+        let is_mdns_successed =
+            match mdns_discovery::start_mdns_service(username_clone, receive_port).await {
+                Ok(_service) => {
+                    println!("@@@ mDNS service registered successfully");
 
-                // Set mDNS status flag to enabled
-                commands::set_mdns_status(true);
+                    // Set mDNS status flag to enabled
+                    commands::set_mdns_status(true);
 
-                // Start mDNS discovery
-                let peer_list_clone = peer_list.clone();
-                if let Err(e) =
-                    mdns_discovery::start_mdns_discovery(peer_list_clone, local_addr).await
-                {
-                    eprintln!("Warning: Failed to start mDNS discovery: {}", e);
-                    eprintln!("@@@ Falling back to broadcast discovery");
-                    commands::set_mdns_status(false);
+                    // Start mDNS discovery
+                    let peer_list_clone = peer_list.clone();
+                    if let Err(e) =
+                        mdns_discovery::start_mdns_discovery(peer_list_clone, local_addr).await
+                    {
+                        eprintln!("Warning: Failed to start mDNS discovery: {}", e);
+                        eprintln!("@@@ Falling back to broadcast discovery");
+                        commands::set_mdns_status(false);
+                        false
+                    } else {
+                        true // mDNS discovery started successfully, no need for traditional discovery
+                    }
                 }
-            }
-            Err(e) => {
-                eprintln!("Warning: Failed to register mDNS service: {}", e);
-                eprintln!("@@@ Falling back to broadcast discovery");
-            }
-        }
+                Err(e) => {
+                    eprintln!("Warning: Failed to register mDNS service: {}", e);
+                    eprintln!("@@@ Falling back to broadcast discovery");
+                    false
+                }
+            };
 
-        // Start traditional peer discovery as fallback
-        let username_clone = username.clone();
-        discovery::start_discovery(socket_send_clone.clone(), username_clone, local_addr).await?;
+        // Start traditional peer discovery only if mDNS failed
+        if !is_mdns_successed {
+            let username_clone = username.clone();
+            discovery::start_discovery(socket_send_clone.clone(), username_clone, local_addr)
+                .await?;
+        }
 
         // Start heartbeat mechanism
         let peer_list_clone = peer_list.clone();
