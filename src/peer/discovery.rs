@@ -22,17 +22,25 @@ pub async fn start_discovery(
     Ok(())
 }
 
-/// Sends a discovery message to the broadcast address on the receive port
-async fn send_discovery_message(
+/// Sends a discovery message to the broadcast address on multiple ports
+pub async fn send_discovery_message(
     socket: Arc<UdpSocket>,
     username: &str,
     local_addr: SocketAddr,
 ) -> std::io::Result<()> {
     let discovery_msg = Message::new_discovery(username.to_string(), local_addr);
 
-    // Broadcast to the specified receive port
+    // Broadcast to the default init port
     let broadcast_addr = format!("{BROADCAST_ADDR}:{}", DEFAULT_RECV_INIT_PORT);
     sender::send_message(socket.clone(), &discovery_msg, &broadcast_addr).await?;
+
+    // Also broadcast to the local port that this peer is using
+    // This helps reach peers that couldn't bind to the default init port
+    let local_port = local_addr.port();
+    if local_port != DEFAULT_RECV_INIT_PORT {
+        let alt_broadcast_addr = format!("{BROADCAST_ADDR}:{}", local_port);
+        sender::send_message(socket.clone(), &discovery_msg, &alt_broadcast_addr).await?;
+    }
 
     Ok(())
 }
@@ -50,10 +58,15 @@ pub async fn handle_discovery_message(
             // Add the peer to our list
             let mut peer_list = peer_list.lock().await;
 
-            // Check if this is a new peer or an existing one with a new address
-            let is_new = !peer_list.update_last_seen(&addr);
+            // Check if this is a new peer before printing a message
+            let is_new = peer_list.find_username_by_addr(&addr).is_none();
+
+            // Always add or update the peer with their exact (username, IP, port)
+            // This ensures proper uniqueness and prevents cross-refreshing
+            peer_list.add_or_update_peer(addr, msg.sender.clone());
+
+            // Only print a message if this is a new peer
             if is_new {
-                peer_list.add_or_update_peer(addr, msg.sender.clone());
                 println!("### New peer discovered: {} ({})", msg.sender, addr);
             }
 
@@ -63,15 +76,34 @@ pub async fn handle_discovery_message(
             let response = Message::new_discovery(username.to_string(), local_addr);
             sender::send_message(socket_clone.clone(), &response, addr_str).await?;
 
-            // Optionally, send our peer list to the new peer
+            // Always send our peer list to the new peer (even if it's just us)
+            // This ensures complete peer discovery across the network
             let peers = peer_list.get_peers();
-            if !peers.is_empty() {
-                let peer_addrs: Vec<String> = peers.iter().map(|p| p.addr.to_string()).collect();
 
-                let peer_list_msg =
-                    Message::new_peer_list(username.to_string(), peer_addrs, local_addr);
-                sender::send_message(socket_clone.clone(), &peer_list_msg, addr_str).await?;
+            // Include ourselves in the peer list if we're not already there
+            let mut has_self = false;
+            for peer in &peers {
+                if peer.addr == local_addr {
+                    has_self = true;
+                    break;
+                }
             }
+
+            // Create the list of peer addresses to share
+            let mut peer_addrs: Vec<String> = peers.iter().map(|p| p.addr.to_string()).collect();
+
+            // Always include ourselves in the peer list we share
+            if !has_self {
+                peer_addrs.push(local_addr.to_string());
+            }
+
+            // Send the peer list message
+            let peer_list_msg =
+                Message::new_peer_list(username.to_string(), peer_addrs, local_addr);
+            sender::send_message(socket_clone.clone(), &peer_list_msg, addr_str).await?;
+
+            // Log that we shared our peer list
+            println!("@@@ Shared peer list with {} ({})", msg.sender, addr);
         }
     }
 
@@ -112,12 +144,13 @@ pub async fn handle_peer_list_message(
                 continue;
             }
 
-            // Check if this is a new peer
-            let is_new = !peer_list_lock.update_last_seen(&addr);
+            // Always add or update the peer with their exact (username, IP, port)
+            // This ensures proper uniqueness and prevents cross-refreshing
+            let is_new = peer_list_lock.find_username_by_addr(&addr).is_none();
 
+            // Add the peer with their address
             if is_new {
-                // We don't know the username yet, so use a temporary name
-                // But don't use anonymous@ prefix to avoid accumulating anonymous peers
+                // For new peers, use a temporary name until we learn their real username
                 let temp_name = format!("peer@{}", addr);
                 peer_list_lock.add_or_update_peer(addr, temp_name);
                 new_peers = true;

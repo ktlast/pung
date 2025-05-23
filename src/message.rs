@@ -1,6 +1,6 @@
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
-use bincode::{Decode, Encode};
 
 #[derive(Debug, Serialize, Deserialize, Clone, Encode, Decode)]
 pub enum MessageType {
@@ -18,6 +18,7 @@ pub struct Message {
     pub timestamp: i64,
     pub msg_type: MessageType,
     pub sender_addr: Option<String>, // String representation of SocketAddr for serialization
+    pub known_peers: Option<Vec<(String, String)>>, // (username, addr as string)
 }
 
 impl Message {
@@ -29,6 +30,7 @@ impl Message {
             timestamp: chrono::Utc::now().timestamp(),
             msg_type: MessageType::Chat,
             sender_addr: sender_addr.map(|addr| addr.to_string()),
+            known_peers: None,
         }
     }
 
@@ -40,10 +42,15 @@ impl Message {
             timestamp: chrono::Utc::now().timestamp(),
             msg_type: MessageType::Discovery,
             sender_addr: Some(sender_addr.to_string()),
+            known_peers: None,
         }
     }
 
-    pub fn new_heartbeat(sender: String, sender_addr: SocketAddr) -> Self {
+    pub fn new_heartbeat(
+        sender: String,
+        sender_addr: SocketAddr,
+        known_peers: Vec<(String, String)>,
+    ) -> Self {
         Message {
             sender,
             content: "HEARTBEAT".to_string(),
@@ -51,6 +58,7 @@ impl Message {
             timestamp: chrono::Utc::now().timestamp(),
             msg_type: MessageType::Heartbeat,
             sender_addr: Some(sender_addr.to_string()),
+            known_peers: Some(known_peers),
         }
     }
 
@@ -65,6 +73,7 @@ impl Message {
             timestamp: chrono::Utc::now().timestamp(),
             msg_type: MessageType::PeerList,
             sender_addr: Some(sender_addr.to_string()),
+            known_peers: None,
         }
     }
 }
