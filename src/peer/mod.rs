@@ -77,16 +77,6 @@ impl PeerList {
         self.peers.values().cloned().collect()
     }
 
-    pub fn update_last_seen(&mut self, username: &str, addr: &SocketAddr) -> bool {
-        // Find peer by username and address (including port)
-        let key = Self::generate_peer_key(username, addr);
-        if let Some(peer) = self.peers.get_mut(&key) {
-            peer.last_seen = Instant::now();
-            return true;
-        }
-        false
-    }
-
     // Find a peer by EXACT address (including port) and return its username if found
     pub fn find_username_by_addr(&self, addr: &SocketAddr) -> Option<String> {
         for peer in self.peers.values() {
