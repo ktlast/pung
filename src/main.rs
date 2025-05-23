@@ -217,9 +217,8 @@ async fn main() -> rustyline::Result<()> {
         })
         .await
         .map_err(|e| {
-            rustyline::error::ReadlineError::Io(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("JoinError: {e}"),
+            rustyline::error::ReadlineError::Io(std::io::Error::other(
+                format!("JoinError: {e}")
             ))
         })?; // handle JoinError (maybe caused by panic etc)
 
