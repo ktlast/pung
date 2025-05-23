@@ -124,31 +124,22 @@ async fn main() -> rustyline::Result<()> {
     // Create a proper socket address with the local IP for peer discovery
     let local_addr = SocketAddr::new(local_ip, receive_port);
 
-    let socket_recv_only_for_init = match UdpSocket::bind(format!(
-        "0.0.0.0:{}",
-        DEFAULT_RECV_INIT_PORT
-    ))
-    .await
-    {
-        Ok(sock) => Some(Arc::new(sock)),
+    // Always send a discovery broadcast, regardless of whether the init port is available
+    // This ensures we can find all peers, even after restarting
+    
+    // Try to bind to the init port, but don't worry if it's already in use
+    let socket_recv_only_for_init = match UdpSocket::bind(format!("0.0.0.0:{}", DEFAULT_RECV_INIT_PORT)).await {
+        Ok(sock) => {
+            println!("@@@ Bound to init port {}", DEFAULT_RECV_INIT_PORT);
+            Some(Arc::new(sock))
+        },
         Err(e) if e.kind() == std::io::ErrorKind::AddrInUse => {
-            // Port is in use, so another pung process is running.
-            // Send a discovery message to the broadcast address so we can join the chat.
-            use crate::peer::discovery::send_discovery_message;
-            use tokio::net::UdpSocket;
-            let temp_socket = UdpSocket::bind("0.0.0.0:0").await?;
-            temp_socket.set_broadcast(true)?;
-            send_discovery_message(Arc::new(temp_socket), &username, local_addr).await?;
-            println!(
-                "@@@ Another pung instance detected; sent discovery broadcast. Continuing without binding to init port."
-            );
+            // Port is in use, so another pung process is running
+            println!("@@@ Another pung instance detected on this machine");
             None
-        }
+        },
         Err(e) => return Err(e.into()),
     };
-
-    // Create a proper socket address with the local IP for peer discovery
-    let local_addr = SocketAddr::new(local_ip, receive_port);
 
     // Prepare shared socket for sending
     let socket_send_clone = socket_send.clone();
@@ -174,23 +165,32 @@ async fn main() -> rustyline::Result<()> {
             }
         });
 
-        let peer_list_clone = peer_list.clone();
-        let username_clone = username.clone();
-        tokio::spawn(async move {
-            if let Err(e) = listener::listen_for_init(
-                socket_recv_only_for_init.expect("Failed to bind to init port"),
-                Some(peer_list_clone),
-                Some(username_clone),
-                Some(local_addr),
-            )
-            .await
-            {
-                eprintln!("Listen for init error: {:?}", e);
-            }
-        });
+        // Only spawn the init listener if we successfully bound to the init port
+        if let Some(init_socket) = socket_recv_only_for_init {
+            let peer_list_clone = peer_list.clone();
+            let username_clone = username.clone();
+            tokio::spawn(async move {
+                if let Err(e) = listener::listen_for_init(
+                    init_socket,
+                    Some(peer_list_clone),
+                    Some(username_clone),
+                    Some(local_addr),
+                )
+                .await
+                {
+                    eprintln!("Listen for init error: {:?}", e);
+                }
+            });
+        } else {
+            // No special mode - we just don't listen on the init port
+            // This is fine as we've already sent a discovery message
+            println!("@@@ Continuing without init port listener (already in use)");
+        }
 
-        // Start peer discovery
+        // Start peer discovery - always send a broadcast to find all peers
+        // This ensures we can find all peers, even after restarting
         let username_clone = username.clone();
+        println!("@@@ Sending discovery broadcast to find peers...");
         discovery::start_discovery(socket_send_clone.clone(), username_clone, local_addr).await?;
 
         // Start heartbeat mechanism

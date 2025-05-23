@@ -50,12 +50,10 @@ pub async fn handle_discovery_message(
             // Add the peer to our list
             let mut peer_list = peer_list.lock().await;
 
-            // Check if this is a new peer or an existing one with a new address
-            let is_new = !peer_list.update_last_seen(&addr);
-            if is_new {
-                peer_list.add_or_update_peer(addr, msg.sender.clone());
-                println!("### New peer discovered: {} ({})", msg.sender, addr);
-            }
+            // Always add or update the peer with their exact (username, IP, port)
+            // This ensures proper uniqueness and prevents cross-refreshing
+            peer_list.add_or_update_peer(addr, msg.sender.clone());
+            println!("### Peer discovered: {} ({})", msg.sender, addr);
 
             let socket_clone = socket.clone();
 
@@ -112,12 +110,13 @@ pub async fn handle_peer_list_message(
                 continue;
             }
 
-            // Check if this is a new peer
-            let is_new = !peer_list_lock.update_last_seen(&addr);
-
+            // Always add or update the peer with their exact (username, IP, port)
+            // This ensures proper uniqueness and prevents cross-refreshing
+            let is_new = peer_list_lock.find_username_by_addr(&addr).is_none();
+            
+            // Add the peer with their address
             if is_new {
-                // We don't know the username yet, so use a temporary name
-                // But don't use anonymous@ prefix to avoid accumulating anonymous peers
+                // For new peers, use a temporary name until we learn their real username
                 let temp_name = format!("peer@{}", addr);
                 peer_list_lock.add_or_update_peer(addr, temp_name);
                 new_peers = true;

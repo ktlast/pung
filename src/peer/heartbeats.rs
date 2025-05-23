@@ -88,11 +88,8 @@ async fn send_heartbeats(
 async fn check_peer_timeouts(peer_list: &SharedPeerList) {
     let timeout = Duration::from_secs(PEER_TIMEOUT);
 
-    // First, consolidate peers with the same username and IP
-    {
-        let mut peer_list = peer_list.lock().await;
-        peer_list.consolidate_duplicate_users();
-    }
+    // Each (username, IP, port) combination is treated as a unique peer
+    // No consolidation is performed - this allows multiple instances on the same machine
 
     // Then remove stale peers
     let stale_peers = {
@@ -115,17 +112,16 @@ pub async fn handle_heartbeat_message(
         if let Ok(addr) = addr_str.parse::<SocketAddr>() {
             let mut peer_list = peer_list.lock().await;
 
-            // Always update/add the sender
+            // Always add or update the sender with the exact (username, IP, port)
             peer_list.add_or_update_peer(addr, msg.sender.clone());
 
-            // If the heartbeat message includes known_peers, update/add them as well
+            // If the heartbeat message includes known_peers, add or update them as well
             if let Some(known_peers) = &msg.known_peers {
                 for (peer_name, peer_addr_str) in known_peers {
                     if let Ok(peer_addr) = peer_addr_str.parse::<SocketAddr>() {
-                        // Avoid adding self
-                        if !(peer_name == &msg.sender && peer_addr == addr) {
-                            peer_list.add_or_update_peer(peer_addr, peer_name.clone());
-                        }
+                        // Add each peer with their exact (username, IP, port) tuple
+                        // This ensures proper uniqueness and prevents cross-refreshing
+                        peer_list.add_or_update_peer(peer_addr, peer_name.clone());
                     }
                 }
             }
