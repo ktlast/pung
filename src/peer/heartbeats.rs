@@ -113,15 +113,21 @@ pub async fn handle_heartbeat_message(
             let mut peer_list = peer_list.lock().await;
 
             // Always add or update the sender with the exact (username, IP, port)
+            // This is the only peer we know for sure is active (since we just received a message from it)
             peer_list.add_or_update_peer(addr, msg.sender.clone());
 
-            // If the heartbeat message includes known_peers, add or update them as well
+            // IMPORTANT: We do NOT update the last_seen timestamp for peers in the known_peers list
+            // We only use known_peers to discover new peers, not to refresh existing ones
+            // This ensures that when a peer is closed, it will be properly removed after timeout
             if let Some(known_peers) = &msg.known_peers {
                 for (peer_name, peer_addr_str) in known_peers {
                     if let Ok(peer_addr) = peer_addr_str.parse::<SocketAddr>() {
-                        // Add each peer with their exact (username, IP, port) tuple
-                        // This ensures proper uniqueness and prevents cross-refreshing
-                        peer_list.add_or_update_peer(peer_addr, peer_name.clone());
+                        // Only add this peer if it's new (not already in our list)
+                        // This prevents refreshing peers that might no longer be active
+                        if peer_list.find_username_by_addr(&peer_addr).is_none() {
+                            println!("@@@ Discovered new peer from heartbeat: {} ({})", peer_name, peer_addr);
+                            peer_list.add_or_update_peer(peer_addr, peer_name.clone());
+                        }
                     }
                 }
             }
