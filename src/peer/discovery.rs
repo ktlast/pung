@@ -23,7 +23,7 @@ pub async fn start_discovery(
 }
 
 /// Sends a discovery message to the broadcast address on the receive port
-async fn send_discovery_message(
+pub async fn send_discovery_message(
     socket: Arc<UdpSocket>,
     username: &str,
     local_addr: SocketAddr,

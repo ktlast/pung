@@ -8,8 +8,8 @@ use tokio::net::UdpSocket;
 use tokio::time;
 
 // Constants for heartbeat
-const HEARTBEAT_INTERVAL: u64 = 10; // seconds
-const PEER_TIMEOUT: u64 = 30; // seconds
+const HEARTBEAT_INTERVAL: u64 = 6; // seconds
+const PEER_TIMEOUT: u64 = 15; // seconds
 
 /// Starts the heartbeat mechanism to maintain peer liveness
 pub async fn start_heartbeat(
@@ -68,10 +68,10 @@ async fn send_heartbeats(
         peer_list
             .get_peers()
             .into_iter()
-            .filter(|p| !(p.username == username && p.addr == local_addr))
             .map(|p| (p.username.clone(), p.addr.to_string()))
             .collect::<Vec<_>>()
     };
+
     let heartbeat_msg = Message::new_heartbeat(username.to_string(), local_addr, peers.clone());
     let socket_clone = socket.clone();
     // Send heartbeat to each peer

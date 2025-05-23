@@ -19,7 +19,7 @@ use tokio::net::UdpSocket;
 use tokio::sync::Mutex;
 use tokio::task;
 
-const DEFAULT_RECV_INIT_PORT: u16 = 9487;
+const DEFAULT_RECV_INIT_PORT: u16 = 9488;
 
 // Get version from Cargo.toml
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -121,8 +121,31 @@ async fn main() -> rustyline::Result<()> {
         UdpSocket::bind(format!("0.0.0.0:{}", receive_port)).await?,
     ));
 
-    let socket_recv_only_for_init =
-        Arc::new(UdpSocket::bind(format!("0.0.0.0:{}", DEFAULT_RECV_INIT_PORT)).await?);
+    // Create a proper socket address with the local IP for peer discovery
+    let local_addr = SocketAddr::new(local_ip, receive_port);
+
+    let socket_recv_only_for_init = match UdpSocket::bind(format!(
+        "0.0.0.0:{}",
+        DEFAULT_RECV_INIT_PORT
+    ))
+    .await
+    {
+        Ok(sock) => Some(Arc::new(sock)),
+        Err(e) if e.kind() == std::io::ErrorKind::AddrInUse => {
+            // Port is in use, so another pung process is running.
+            // Send a discovery message to the broadcast address so we can join the chat.
+            use crate::peer::discovery::send_discovery_message;
+            use tokio::net::UdpSocket;
+            let temp_socket = UdpSocket::bind("0.0.0.0:0").await?;
+            temp_socket.set_broadcast(true)?;
+            send_discovery_message(Arc::new(temp_socket), &username, local_addr).await?;
+            println!(
+                "@@@ Another pung instance detected; sent discovery broadcast. Continuing without binding to init port."
+            );
+            None
+        }
+        Err(e) => return Err(e.into()),
+    };
 
     // Create a proper socket address with the local IP for peer discovery
     let local_addr = SocketAddr::new(local_ip, receive_port);
@@ -155,7 +178,7 @@ async fn main() -> rustyline::Result<()> {
         let username_clone = username.clone();
         tokio::spawn(async move {
             if let Err(e) = listener::listen_for_init(
-                socket_recv_only_for_init.clone(),
+                socket_recv_only_for_init.expect("Failed to bind to init port"),
                 Some(peer_list_clone),
                 Some(username_clone),
                 Some(local_addr),
