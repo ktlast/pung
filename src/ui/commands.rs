@@ -1,7 +1,16 @@
 use crate::VERSION;
-use crate::peer::SharedPeerList;
+use crate::peer::{SharedPeerList, discovery};
+use std::sync::Arc;
+use tokio::net::UdpSocket;
+use std::net::SocketAddr;
 
-pub async fn handle_command(input_line: &str, peer_list: SharedPeerList) -> Option<String> {
+pub async fn handle_command(
+    input_line: &str, 
+    peer_list: SharedPeerList,
+    socket: Option<Arc<UdpSocket>>,
+    username: Option<String>,
+    local_addr: Option<SocketAddr>
+) -> Option<String> {
     // Extract the command part (first word) for matching
     let command = input_line.split_whitespace().next().unwrap_or("");
 
@@ -60,6 +69,7 @@ pub async fn handle_command(input_line: &str, peer_list: SharedPeerList) -> Opti
         help?
         Available commands:
             /[ p | peers ]           - Show list of connected peers
+            /[ b | broadcast ]       - Manually send a discovery broadcast to find peers
             /[ rm | remove ] <index> - Remove a peer by its index
             /[ h | help ]            - Show this help message
             /[ v | version ]         - Show version
@@ -71,6 +81,17 @@ pub async fn handle_command(input_line: &str, peer_list: SharedPeerList) -> Opti
             ";
             Some("@@@ ".to_string() + help_text)
         }
+        "/broadcast" | "/b" => {
+            // Check if we have all the required parameters
+            if let (Some(socket), Some(username), Some(addr)) = (socket, username, local_addr) {
+                match discovery::start_discovery(socket, username, addr).await {
+                    Ok(_) => Some("@@@ Discovery broadcast sent. Searching for peers...".to_string()),
+                    Err(e) => Some(format!("@@@ Failed to send discovery broadcast: {}", e)),
+                }
+            } else {
+                Some("@@@ Cannot send broadcast: missing required parameters".to_string())
+            }
+        },
         "/version" | "/v" => Some(format!("@@@ Version: {}", VERSION)),
         _ => {
             if input_line.starts_with("/") {

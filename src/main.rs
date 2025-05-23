@@ -228,8 +228,16 @@ async fn main() -> rustyline::Result<()> {
                 std::io::stdout().flush()?;
                 if line.starts_with("/") {
                     let peer_list_clone = peer_list.clone();
+                    let socket_clone = socket_send_clone.clone();
+                    let username_clone = username.clone();
                     if let Some(response) =
-                        ui::commands::handle_command(&line, peer_list_clone).await
+                        ui::commands::handle_command(
+                            &line, 
+                            peer_list_clone, 
+                            Some(socket_clone),
+                            Some(username_clone),
+                            Some(local_addr)
+                        ).await
                     {
                         if response == "exit" {
                             println!("@@@ bye!");
