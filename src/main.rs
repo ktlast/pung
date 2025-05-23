@@ -126,20 +126,21 @@ async fn main() -> rustyline::Result<()> {
 
     // Always send a discovery broadcast, regardless of whether the init port is available
     // This ensures we can find all peers, even after restarting
-    
+
     // Try to bind to the init port, but don't worry if it's already in use
-    let socket_recv_only_for_init = match UdpSocket::bind(format!("0.0.0.0:{}", DEFAULT_RECV_INIT_PORT)).await {
-        Ok(sock) => {
-            println!("@@@ Bound to init port {}", DEFAULT_RECV_INIT_PORT);
-            Some(Arc::new(sock))
-        },
-        Err(e) if e.kind() == std::io::ErrorKind::AddrInUse => {
-            // Port is in use, so another pung process is running
-            println!("@@@ Another pung instance detected on this machine");
-            None
-        },
-        Err(e) => return Err(e.into()),
-    };
+    let socket_recv_only_for_init =
+        match UdpSocket::bind(format!("0.0.0.0:{}", DEFAULT_RECV_INIT_PORT)).await {
+            Ok(sock) => {
+                println!("@@@ Bound to init port {}", DEFAULT_RECV_INIT_PORT);
+                Some(Arc::new(sock))
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::AddrInUse => {
+                // Port is in use, so another pung process is running
+                println!("@@@ Another pung instance detected on this machine");
+                None
+            }
+            Err(e) => return Err(e.into()),
+        };
 
     // Prepare shared socket for sending
     let socket_send_clone = socket_send.clone();
@@ -205,7 +206,7 @@ async fn main() -> rustyline::Result<()> {
         .await?;
     }
 
-    println!("@@@ To show known peers, type [/peers]");
+    println!("@@@ Enter [/h] to show available commands");
     let rl = Arc::new(Mutex::new(DefaultEditor::new()?));
 
     loop {
@@ -230,14 +231,14 @@ async fn main() -> rustyline::Result<()> {
                     let peer_list_clone = peer_list.clone();
                     let socket_clone = socket_send_clone.clone();
                     let username_clone = username.clone();
-                    if let Some(response) =
-                        ui::commands::handle_command(
-                            &line, 
-                            peer_list_clone, 
-                            Some(socket_clone),
-                            Some(username_clone),
-                            Some(local_addr)
-                        ).await
+                    if let Some(response) = ui::commands::handle_command(
+                        &line,
+                        peer_list_clone,
+                        Some(socket_clone),
+                        Some(username_clone),
+                        Some(local_addr),
+                    )
+                    .await
                     {
                         if response == "exit" {
                             println!("@@@ bye!");
