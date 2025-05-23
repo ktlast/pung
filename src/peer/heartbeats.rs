@@ -62,19 +62,25 @@ async fn send_heartbeats(
     local_addr: SocketAddr,
     peer_list: &SharedPeerList,
 ) -> std::io::Result<()> {
-    let heartbeat_msg = Message::new_heartbeat(username.to_string(), local_addr);
-    let socket_clone = socket.clone();
-    // Get the current list of peers
+    // Gather known peers as (username, addr) pairs, skipping self
     let peers = {
         let peer_list = peer_list.lock().await;
-        peer_list.get_peers()
+        peer_list
+            .get_peers()
+            .into_iter()
+            .filter(|p| !(p.username == username && p.addr == local_addr))
+            .map(|p| (p.username.clone(), p.addr.to_string()))
+            .collect::<Vec<_>>()
     };
-
+    let heartbeat_msg = Message::new_heartbeat(username.to_string(), local_addr, peers.clone());
+    let socket_clone = socket.clone();
     // Send heartbeat to each peer
-    for peer in peers {
-        sender::send_message(socket_clone.clone(), &heartbeat_msg, &peer.addr.to_string()).await?;
+    for (_, peer_addr_str) in peers {
+        if let Ok(peer_addr) = peer_addr_str.parse::<SocketAddr>() {
+            sender::send_message(socket_clone.clone(), &heartbeat_msg, &peer_addr.to_string())
+                .await?;
+        }
     }
-
     Ok(())
 }
 
@@ -109,41 +115,18 @@ pub async fn handle_heartbeat_message(
         if let Ok(addr) = addr_str.parse::<SocketAddr>() {
             let mut peer_list = peer_list.lock().await;
 
-            // Check if we already know this exact peer by address
-            let known_exact = peer_list.update_last_seen(&addr);
+            // Always update/add the sender
+            peer_list.add_or_update_peer(addr, msg.sender.clone());
 
-            // If not known by exact address, check if this might be a user we already know
-            // but with a different port (e.g., after restart)
-            if !known_exact {
-                // Get all peers we know about
-                let peers = peer_list.get_peers();
-
-                // Check if we have another peer with the same username and IP but different port
-                let same_user = peers.iter().any(|p| {
-                    // Extract IP from SocketAddr (ignoring port)
-                    let peer_ip = p.addr.ip();
-                    let current_ip = addr.ip();
-
-                    // Check if same username and IP
-                    p.username == msg.sender && peer_ip == current_ip
-                });
-
-                if same_user {
-                    // This is likely the same user who restarted their application
-                    // Update their address to the new one
-                    log::debug!(
-                        "Updating address for existing user: {} to {}",
-                        msg.sender,
-                        addr
-                    );
-                    peer_list.add_or_update_peer(addr, msg.sender.clone());
-                } else {
-                    // This is a genuinely new peer
-                    peer_list.add_or_update_peer(addr, msg.sender.clone());
-                    println!(
-                        "### New peer discovered via heartbeat: {} ({})",
-                        msg.sender, addr
-                    );
+            // If the heartbeat message includes known_peers, update/add them as well
+            if let Some(known_peers) = &msg.known_peers {
+                for (peer_name, peer_addr_str) in known_peers {
+                    if let Ok(peer_addr) = peer_addr_str.parse::<SocketAddr>() {
+                        // Avoid adding self
+                        if !(peer_name == &msg.sender && peer_addr == addr) {
+                            peer_list.add_or_update_peer(peer_addr, peer_name.clone());
+                        }
+                    }
                 }
             }
         }
