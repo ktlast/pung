@@ -10,6 +10,7 @@ use tokio::time;
 // Constants for heartbeat
 const HEARTBEAT_INTERVAL: u64 = 6; // seconds
 const PEER_TIMEOUT: u64 = 15; // seconds
+const REMOVED_PEER_GRACE_PERIOD: u64 = 30; // seconds - don't re-add peers that were removed within this time
 
 /// Starts the heartbeat mechanism to maintain peer liveness
 pub async fn start_heartbeat(
@@ -106,14 +107,20 @@ async fn send_heartbeats(
 /// Checks for peers that haven't been seen recently and removes them
 async fn check_peer_timeouts(peer_list: &SharedPeerList) {
     let timeout = Duration::from_secs(PEER_TIMEOUT);
+    let cleanup_age = Duration::from_secs(REMOVED_PEER_GRACE_PERIOD * 2); // Clean up entries after twice the grace period
 
     // Each (username, IP, port) combination is treated as a unique peer
     // No consolidation is performed - this allows multiple instances on the same machine
 
-    // Then remove stale peers
+    // Then remove stale peers and clean up old entries from the recently removed list
     let stale_peers = {
         let mut peer_list = peer_list.lock().await;
-        peer_list.remove_stale_peers(timeout)
+        let removed = peer_list.remove_stale_peers(timeout);
+        
+        // Clean up old entries from the recently removed list
+        peer_list.clean_removed_list(cleanup_age);
+        
+        removed
     };
 
     // Log removed peers
@@ -141,11 +148,17 @@ pub async fn handle_heartbeat_message(
             if let Some(known_peers) = &msg.known_peers {
                 for (peer_name, peer_addr_str) in known_peers {
                     if let Ok(peer_addr) = peer_addr_str.parse::<SocketAddr>() {
-                        // Only add this peer if it's new (not already in our list)
-                        // This prevents refreshing peers that might no longer be active
-                        if peer_list.find_username_by_addr(&peer_addr).is_none() {
+                        // Only add this peer if it's new (not already in our list) AND not recently removed
+                        // This prevents both refreshing inactive peers and re-adding zombie peers
+                        let is_new = peer_list.find_username_by_addr(&peer_addr).is_none();
+                        let grace_period = Duration::from_secs(REMOVED_PEER_GRACE_PERIOD);
+                        let was_recently_removed = peer_list.was_recently_removed(&peer_addr, grace_period);
+                        
+                        if is_new && !was_recently_removed {
                             println!("@@@ Discovered new peer from heartbeat: {} ({})", peer_name, peer_addr);
                             peer_list.add_or_update_peer(peer_addr, peer_name.clone());
+                        } else if was_recently_removed {
+                            log::debug!("Ignoring recently removed peer: {} ({})", peer_name, peer_addr);
                         }
                     }
                 }

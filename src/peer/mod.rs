@@ -20,12 +20,16 @@ pub struct PeerInfo {
 pub struct PeerList {
     // Use a combination of username and address as the key to prevent username conflicts
     peers: HashMap<String, PeerInfo>,
+    // Track recently removed peers to prevent zombie peers from being re-added
+    // The key is the socket address as a string, and the value is the time when the peer was removed
+    recently_removed: HashMap<String, Instant>,
 }
 
 impl PeerList {
     pub fn new() -> Self {
         PeerList {
             peers: HashMap::new(),
+            recently_removed: HashMap::new(),
         }
     }
 
@@ -90,18 +94,40 @@ impl PeerList {
 
     pub fn remove_stale_peers(&mut self, timeout: Duration) -> Vec<String> {
         let now = Instant::now();
-        let stale_peers: Vec<String> = self
+        let stale_peers: Vec<(String, SocketAddr)> = self
             .peers
             .iter()
             .filter(|(_, info)| now.duration_since(info.last_seen) > timeout)
-            .map(|(username, _)| username.clone())
+            .map(|(username, info)| (username.clone(), info.addr))
             .collect();
 
-        for username in &stale_peers {
+        for (username, addr) in &stale_peers {
             self.peers.remove(username);
+            // Add to recently removed peers
+            self.recently_removed.insert(addr.to_string(), now);
         }
 
+        // Return just the usernames for backward compatibility
         stale_peers
+            .into_iter()
+            .map(|(username, _)| username)
+            .collect()
+    }
+
+    // Check if a peer was recently removed (within the grace period)
+    pub fn was_recently_removed(&self, addr: &SocketAddr, grace_period: Duration) -> bool {
+        if let Some(removed_time) = self.recently_removed.get(&addr.to_string()) {
+            let now = Instant::now();
+            return now.duration_since(*removed_time) < grace_period;
+        }
+        false
+    }
+
+    // Clean up old entries from the recently_removed list
+    pub fn clean_removed_list(&mut self, max_age: Duration) {
+        let now = Instant::now();
+        self.recently_removed
+            .retain(|_, removed_time| now.duration_since(*removed_time) < max_age);
     }
 
     pub fn remove_peer_by_index(&mut self, index: usize) -> Option<PeerInfo> {
