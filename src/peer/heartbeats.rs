@@ -22,9 +22,24 @@ pub async fn start_heartbeat(
     let username_clone = username.clone();
     let peer_list_clone = peer_list.clone();
     tokio::spawn(async move {
-        let mut interval = time::interval(Duration::from_secs(HEARTBEAT_INTERVAL));
         let socket_clone = socket.clone();
-
+        
+        // Send a heartbeat immediately when starting
+        log::debug!("[Heartbeat] Sending initial heartbeat");
+        if let Err(e) = send_heartbeats(
+            socket_clone.clone(),
+            &username_clone,
+            local_addr,
+            &peer_list_clone,
+        )
+        .await
+        {
+            log::error!("Error sending initial heartbeat: {}", e);
+        }
+        
+        // Then set up the regular interval for subsequent heartbeats
+        let mut interval = time::interval(Duration::from_secs(HEARTBEAT_INTERVAL));
+        
         loop {
             interval.tick().await;
             log::debug!("[Heartbeat] Sending heartbeats");
@@ -44,6 +59,10 @@ pub async fn start_heartbeat(
     // Start peer timeout checker
     let peer_list_clone = peer_list.clone();
     tokio::spawn(async move {
+        // Check for timeouts immediately when starting
+        check_peer_timeouts(&peer_list_clone).await;
+        
+        // Then set up the regular interval for subsequent checks
         let mut interval = time::interval(Duration::from_secs(HEARTBEAT_INTERVAL));
 
         loop {
