@@ -19,7 +19,7 @@ use tokio::net::UdpSocket;
 use tokio::sync::Mutex;
 use tokio::task;
 
-const DEFAULT_RECV_INIT_PORT: u16 = 9488;
+const DEFAULT_RECV_INIT_PORT: u16 = 9487;
 
 // Get version from Cargo.toml
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -217,9 +217,7 @@ async fn main() -> rustyline::Result<()> {
         })
         .await
         .map_err(|e| {
-            rustyline::error::ReadlineError::Io(std::io::Error::other(
-                format!("JoinError: {e}")
-            ))
+            rustyline::error::ReadlineError::Io(std::io::Error::other(format!("JoinError: {e}")))
         })?; // handle JoinError (maybe caused by panic etc)
 
         match line_result {
