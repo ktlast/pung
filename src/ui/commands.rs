@@ -1,5 +1,6 @@
 use crate::VERSION;
 use crate::peer::{SharedPeerList, discovery};
+use crate::utils;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::UdpSocket;
@@ -20,21 +21,21 @@ pub async fn handle_command(
             if peers.is_empty() {
                 Some("@@@ No peers connected.".to_string())
             } else {
-                let mut response = String::from("@@@ Current peers:\n");
-                for (i, peer) in peers.iter().enumerate() {
-                    // Convert Instant to a timestamp for display
-                    let elapsed = peer.last_seen.elapsed();
-                    let seconds_ago = elapsed.as_secs();
-
-                    response.push_str(&format!(
-                        "@@@   {}. {} at {} (last seen {}s ago)\n",
-                        i + 1,
-                        peer.username,
-                        peer.addr,
-                        seconds_ago
-                    ));
-                }
-                Some(response)
+                utils::display_message_block(
+                    "Peers",
+                    peers
+                        .iter()
+                        .map(|peer| {
+                            format!(
+                                "{:15} @ {:20} ({}s ago)",
+                                peer.username,
+                                peer.addr,
+                                peer.last_seen.elapsed().as_secs()
+                            )
+                        })
+                        .collect(),
+                );
+                None
             }
         }
         "/quit" | "/q" => Some("exit".to_string()),
