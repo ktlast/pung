@@ -56,7 +56,14 @@ async fn main() -> rustyline::Result<()> {
 
     // Extract values from command line arguments
     let username = match matches.get_one::<String>("username") {
-        Some(username) => username.clone(),
+        Some(username) => {
+            // Limit username to 12 characters
+            if username.len() > 12 {
+                username[0..12].to_string()
+            } else {
+                username.clone()
+            }
+        },
         None => {
             let mut bytes = [0u8; 2];
             rand::rng().fill_bytes(&mut bytes);
