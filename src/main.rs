@@ -19,7 +19,7 @@ use tokio::net::UdpSocket;
 use tokio::sync::Mutex;
 use tokio::task;
 
-const DEFAULT_RECV_INIT_PORT: u16 = 9487;
+const DEFAULT_RECV_INIT_PORT: u16 = 9488;
 
 // Get version from Cargo.toml
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -81,24 +81,22 @@ async fn main() -> rustyline::Result<()> {
         None => 80,
     };
 
-    // We'll broadcast to all common receive ports to ensure all instances receive our messages
-    // Each instance will ignore messages from itself based on the message ID
-
-    println!(
-        "@@@ Starting pung with username={}, send_port={}, recv_port={}",
-        username, send_port, receive_port
-    );
+    let mut startup_message: Vec<String> = vec![];
+    startup_message.push(format!("username = {}", username));
+    startup_message.push(format!("send_port = {}", send_port));
+    startup_message.push(format!("recv_port = {}", receive_port));
 
     // Check for updates in a separate task to avoid blocking startup
     tokio::spawn(async move {
         if let Some(latest_version) = utils::check_for_updates(VERSION).await {
-            println!(
-                "@@@ New version available: [{}]! Current version: [{}]",
-                latest_version, VERSION
-            );
-            println!(
-                "@@@ Download the latest version from: https://github.com/ktlast/pung/releases/latest"
-            );
+            let mut new_version_message: Vec<String> = vec![];
+            new_version_message.push("New version available!".to_string());
+            new_version_message.push(format!("- Update: [{}] -> [{}]", VERSION, latest_version));
+            new_version_message.push("".to_string());
+            new_version_message.push("Download the latest version from:".to_string());
+            new_version_message
+                .push("- https://github.com/ktlast/pung/releases/latest".to_string());
+            utils::display_message_block("New version", new_version_message)
         }
     });
 
@@ -110,7 +108,7 @@ async fn main() -> rustyline::Result<()> {
         println!("Warning: Could not determine local IP address, using 0.0.0.0");
         "0.0.0.0".parse().unwrap()
     });
-    println!("@@@ Using local IP address: {}", local_ip);
+    startup_message.push(format!("local_ip = {}", local_ip));
 
     // Bind sockets
     let socket_send = Arc::new(UdpSocket::bind(format!("0.0.0.0:{}", send_port)).await?);
@@ -131,12 +129,14 @@ async fn main() -> rustyline::Result<()> {
     let socket_recv_only_for_init =
         match UdpSocket::bind(format!("0.0.0.0:{}", DEFAULT_RECV_INIT_PORT)).await {
             Ok(sock) => {
-                println!("@@@ Bound to init port {}", DEFAULT_RECV_INIT_PORT);
+                startup_message.push(format!(
+                    "init port status = bound to {}",
+                    DEFAULT_RECV_INIT_PORT
+                ));
                 Some(Arc::new(sock))
             }
             Err(e) if e.kind() == std::io::ErrorKind::AddrInUse => {
-                // Port is in use, so another pung process is running
-                println!("@@@ Another pung instance detected on this machine");
+                startup_message.push("init port status = already in use".to_string());
                 None
             }
             Err(e) => return Err(e.into()),
@@ -188,6 +188,11 @@ async fn main() -> rustyline::Result<()> {
             println!("@@@ Continuing without init port listener (already in use)");
         }
 
+        startup_message.push("".to_string());
+        startup_message.push("Tip: use [/h] to show available commands".to_string());
+
+        utils::display_message_block("Startup", startup_message);
+
         // Start peer discovery - always send a broadcast to find all peers
         // This ensures we can find all peers, even after restarting
         let username_clone = username.clone();
@@ -206,7 +211,6 @@ async fn main() -> rustyline::Result<()> {
         .await?;
     }
 
-    println!("@@@ Enter [/h] to show available commands");
     let rl = Arc::new(Mutex::new(DefaultEditor::new()?));
 
     loop {
