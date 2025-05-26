@@ -126,26 +126,6 @@ impl PeerList {
         self.recently_removed
             .retain(|_, removed_time| now.duration_since(*removed_time) < max_age);
     }
-
-    pub fn remove_peer_by_index(&mut self, index: usize) -> Option<PeerInfo> {
-        // Get all peers as a vector
-        let peers = self.get_peers();
-
-        // Check if the index is valid
-        if index < peers.len() {
-            // Get the address and username of the peer at the specified index
-            let addr = peers[index].addr;
-            let username = peers[index].username.clone();
-
-            // Generate the key for this peer
-            let key = Self::generate_peer_key(&username, &addr);
-
-            // Remove the peer from the HashMap and return it
-            self.peers.remove(&key)
-        } else {
-            None
-        }
-    }
 }
 
 // Create a thread-safe shared PeerList
