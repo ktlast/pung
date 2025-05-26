@@ -29,11 +29,18 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+
     - name: Setup Rust
       uses: actions-rust-lang/setup-rust-toolchain@v1
       with:
         toolchain: ${{ matrix.rust }}
         target: ${{ matrix.target }}
+
+    - name: Install cargo-edit to set version
+      run: cargo install cargo-edit
+
+    - name: Set version
+      run: cargo set-version "${{ github.ref_name }}"
 
     - name: Build release binary
       run: cargo build --target ${{ matrix.target }} --verbose --release --bin ${{ env.BIN_NAME }}
