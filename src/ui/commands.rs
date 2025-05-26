@@ -25,9 +25,11 @@ pub async fn handle_command(
                     "Peers",
                     peers
                         .iter()
-                        .map(|peer| {
+                        .enumerate() // Add enumeration to get index
+                        .map(|(i, peer)| {
                             format!(
-                                "{:15} @ {:20} ({}s ago)",
+                                "{}) {:15} @ {:20} ({}s ago)",
+                                i + 1, // Add 1 to make it 1-based instead of 0-based
                                 peer.username,
                                 peer.addr,
                                 peer.last_seen.elapsed().as_secs()
