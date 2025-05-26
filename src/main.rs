@@ -89,10 +89,10 @@ async fn main() -> rustyline::Result<()> {
     };
 
     let mut startup_message: Vec<String> = vec![];
-    startup_message.push(format!("Version: {}", VERSION));
-    startup_message.push(format!("username = {}", username));
-    startup_message.push(format!("send_port = {}", send_port));
-    startup_message.push(format!("recv_port = {}", receive_port));
+    startup_message.push(format!("{:12} = {}", "Version", VERSION));
+    startup_message.push(format!("{:12} = {}", "Username", username));
+    startup_message.push(format!("{:12} = {}", "Send port", send_port));
+    startup_message.push(format!("{:12} = {}", "Recv port", receive_port));
 
     // Create shared peer list for tracking peers
     let peer_list = Arc::new(Mutex::new(PeerList::new()));
@@ -102,7 +102,7 @@ async fn main() -> rustyline::Result<()> {
         println!("Warning: Could not determine local IP address, using 0.0.0.0");
         "0.0.0.0".parse().unwrap()
     });
-    startup_message.push(format!("local_ip = {}", local_ip));
+    startup_message.push(format!("{:12} = {}", "Local IP", local_ip));
 
     // Bind sockets
     let socket_send = Arc::new(UdpSocket::bind(format!("0.0.0.0:{}", send_port)).await?);
@@ -123,14 +123,14 @@ async fn main() -> rustyline::Result<()> {
     let socket_recv_only_for_init =
         match UdpSocket::bind(format!("0.0.0.0:{}", DEFAULT_RECV_INIT_PORT)).await {
             Ok(sock) => {
-                startup_message.push(format!(
-                    "init port status = bound to {}",
-                    DEFAULT_RECV_INIT_PORT
-                ));
+                startup_message.push(format!("{:12} = {}", "Init port", DEFAULT_RECV_INIT_PORT));
                 Some(Arc::new(sock))
             }
             Err(e) if e.kind() == std::io::ErrorKind::AddrInUse => {
-                startup_message.push("init port status = already in use".to_string());
+                startup_message.push(format!(
+                    "{:12} = {}* already in use",
+                    "Init port", DEFAULT_RECV_INIT_PORT
+                ));
                 None
             }
             Err(e) => return Err(e.into()),
@@ -183,8 +183,9 @@ async fn main() -> rustyline::Result<()> {
         }
 
         startup_message.push("".to_string());
-        startup_message.push("Tip: use [/h] to show available commands".to_string());
-        startup_message.push("Tip: use [/v] to show version and check for updates".to_string());
+        startup_message.push("Tips:".to_string());
+        startup_message.push("- use [/h] to show available commands".to_string());
+        startup_message.push("- use [/v] to show version and check for updates".to_string());
 
         utils::display_message_block("Startup", startup_message);
 

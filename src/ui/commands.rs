@@ -48,7 +48,7 @@ pub async fn handle_command(
             /[ p | peers ]           - Show list of connected peers
             /[ b | broadcast ]       - Manually send a discovery broadcast to find peers
             /[ h | help ]            - Show this help message
-            /[ v | version ]         - Show version
+            /[ v | version ]         - Show version and check for updates
             /[ q | quit ]            - Quit the application
 
         Legend of prefixes:
