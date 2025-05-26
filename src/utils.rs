@@ -85,3 +85,67 @@ pub async fn check_for_updates(current_version: &str) -> Option<String> {
         Err(_) => None,
     }
 }
+
+pub fn display_message_block(title: &str, messages: Vec<String>) {
+    //   ┌───────┐
+    //   │ title │
+    // ┌─┴───────┴────┐
+    // │ message 1    │
+    // │ message 2    │
+    // └──────────────┘
+    if messages.is_empty() {
+        return;
+    }
+
+    // Find the maximum width needed for the box
+    let title_len = title.chars().count();
+    let max_message_len = messages
+        .iter()
+        .map(|msg| msg.chars().count())
+        .max()
+        .unwrap_or(0);
+
+    // The content width is the max of the title length and the longest message
+    // Add some extra padding for better appearance
+    let content_width = std::cmp::max(title_len, max_message_len);
+
+    // Create a box with consistent width
+    let box_width = content_width + 4; // 2 spaces on each side
+
+    // Center the title
+    let title_left_pad = 1;
+    let title_right_pad = 1;
+    let padded_title = format!(
+        "{}{}{}",
+        " ".repeat(title_left_pad),
+        title,
+        " ".repeat(title_right_pad)
+    );
+
+    // Draw the title box (centered over the main box)
+    println!(
+        "  ┌{}{}{}┐",
+        "─".repeat(title_left_pad),
+        "─".repeat(title_len),
+        "─".repeat(title_right_pad)
+    );
+    println!("  │{}│", padded_title);
+
+    // Draw the top of the message box with connections to title box
+    println!(
+        "┌─┴{}{}{}┴{}┐",
+        "─".repeat(title_left_pad),
+        "─".repeat(title_len),
+        "─".repeat(title_right_pad),
+        "─".repeat(box_width - title_len - title_left_pad - title_right_pad - 5)
+    );
+
+    // Draw each message line with consistent padding
+    for message in messages {
+        let padding = content_width - message.chars().count();
+        println!("│ {}{} │", message, " ".repeat(padding));
+    }
+
+    // Draw the bottom of the box
+    println!("└{}┘", "─".repeat(box_width - 2));
+}
