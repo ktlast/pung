@@ -63,7 +63,7 @@ async fn main() -> rustyline::Result<()> {
             } else {
                 username.clone()
             }
-        },
+        }
         None => {
             let mut bytes = [0u8; 2];
             rand::rng().fill_bytes(&mut bytes);
@@ -89,30 +89,10 @@ async fn main() -> rustyline::Result<()> {
     };
 
     let mut startup_message: Vec<String> = vec![];
+    startup_message.push(format!("Version: {}", VERSION));
     startup_message.push(format!("username = {}", username));
     startup_message.push(format!("send_port = {}", send_port));
     startup_message.push(format!("recv_port = {}", receive_port));
-
-    // Check for updates in a separate task to avoid blocking startup
-    tokio::spawn(async move {
-        // Don't check for updates if we're running from source
-        if VERSION == "0.0.0" {
-            return;
-        }
-        if let Some(latest_version) = utils::check_for_updates(VERSION).await {
-            let mut new_version_message: Vec<String> = vec![];
-            new_version_message.push("New version available!".to_string());
-            new_version_message.push(format!("- Update: [{}] -> [{}]", VERSION, latest_version));
-            new_version_message.push("".to_string());
-            new_version_message.push("Download the latest version from:".to_string());
-            new_version_message
-                .push("- https://github.com/ktlast/pung/releases/latest".to_string());
-            new_version_message.push("".to_string());
-            new_version_message.push("Or via oneliner:".to_string());
-            new_version_message.push("- bash <(curl -s https://raw.githubusercontent.com/ktlast/pung/master/get-pung.sh)".to_string());
-            utils::display_message_block("New version", new_version_message)
-        }
-    });
 
     // Create shared peer list for tracking peers
     let peer_list = Arc::new(Mutex::new(PeerList::new()));
@@ -204,6 +184,7 @@ async fn main() -> rustyline::Result<()> {
 
         startup_message.push("".to_string());
         startup_message.push("Tip: use [/h] to show available commands".to_string());
+        startup_message.push("Tip: use [/v] to show version and check for updates".to_string());
 
         utils::display_message_block("Startup", startup_message);
 
