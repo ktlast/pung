@@ -48,7 +48,7 @@ pub async fn handle_command(
             /[ p | peers ]           - Show list of connected peers
             /[ b | broadcast ]       - Manually send a discovery broadcast to find peers
             /[ h | help ]            - Show this help message
-            /[ v | version ]         - Show version
+            /[ v | version ]         - Show version and check for updates
             /[ q | quit ]            - Quit the application
 
         Legend of prefixes:
@@ -70,7 +70,26 @@ pub async fn handle_command(
                 Some("@@@ Cannot send broadcast: missing required parameters".to_string())
             }
         }
-        "/version" | "/v" => Some(format!("@@@ Version: {}", VERSION)),
+        "/version" | "/v" => {
+            // Don't check for updates if we're running from source
+            if VERSION != "0.0.0" {
+                if let Some(latest_version) = utils::check_for_updates(VERSION).await {
+                    let mut new_version_message: Vec<String> = vec![];
+                    new_version_message.push("New version available!".to_string());
+                    new_version_message
+                        .push(format!("- Update: [{}] -> [{}]", VERSION, latest_version));
+                    new_version_message.push("".to_string());
+                    new_version_message.push("Download the latest version from:".to_string());
+                    new_version_message
+                        .push("- https://github.com/ktlast/pung/releases/latest".to_string());
+                    new_version_message.push("".to_string());
+                    new_version_message.push("Or via oneliner:".to_string());
+                    new_version_message.push("- bash <(curl -s https://raw.githubusercontent.com/ktlast/pung/master/get-pung.sh)".to_string());
+                    utils::display_message_block("New version", new_version_message);
+                }
+            }
+            Some(format!("@@@ Version: {}", VERSION))
+        }
         _ => {
             if input_line.starts_with("/") {
                 // Unknown command starting with /
