@@ -5,6 +5,7 @@ mod ui;
 mod utils;
 
 use clap::{Arg, Command};
+use dashmap::DashMap;
 use message::Message;
 use net::{listener, sender};
 use peer::PeerList;
@@ -20,12 +21,13 @@ use tokio::sync::Mutex;
 use tokio::task;
 
 const DEFAULT_RECV_INIT_PORT: u16 = 9487;
-
+const MAX_USERNAME_LEN: usize = 12;
 // Get version from Cargo.toml
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[tokio::main]
 async fn main() -> rustyline::Result<()> {
+    let app_state: Arc<DashMap<&str, String>> = Arc::new(DashMap::new());
     // Parse command line arguments using clap
     let matches = Command::new("pung")
         .version(VERSION)
@@ -54,12 +56,13 @@ async fn main() -> rustyline::Result<()> {
         )
         .get_matches();
 
+    app_state.insert("static:version", VERSION.to_string());
     // Extract values from command line arguments
     let username = match matches.get_one::<String>("username") {
         Some(username) => {
-            // Limit username to 12 characters
-            if username.len() > 12 {
-                username[0..12].to_string()
+            // Limit username to MAX_USERNAME_LEN characters
+            if username.len() > MAX_USERNAME_LEN {
+                username[0..MAX_USERNAME_LEN].to_string()
             } else {
                 username.clone()
             }
@@ -70,9 +73,11 @@ async fn main() -> rustyline::Result<()> {
             format!("user-{}", hex::encode(bytes))
         }
     };
+    app_state.insert("static:username", username.clone());
 
     // Generate a random port for sending
     let send_port = utils::get_random_port(20000, 30000);
+    app_state.insert("static:send_port", send_port.to_string());
 
     // Generate a random port for receiving if not specified
     let receive_port = match matches.get_one::<String>("receive_port") {
@@ -81,18 +86,14 @@ async fn main() -> rustyline::Result<()> {
             .unwrap_or_else(|_| utils::get_random_port(10000, 20000)),
         None => utils::get_random_port(10000, 20000),
     };
+    app_state.insert("static:receive_port", receive_port.to_string());
 
     // Get terminal width from command-line arguments or use default
     let terminal_width = match matches.get_one::<String>("terminal_width") {
         Some(width_str) => width_str.parse::<usize>().unwrap_or(80),
         None => 80,
     };
-
-    let mut startup_message: Vec<String> = vec![];
-    startup_message.push(format!("{:12} = {}", "Version", VERSION));
-    startup_message.push(format!("{:12} = {}", "Username", username));
-    startup_message.push(format!("{:12} = {}", "Send port", send_port));
-    startup_message.push(format!("{:12} = {}", "Recv port", receive_port));
+    app_state.insert("pref:terminal_width", terminal_width.to_string());
 
     // Create shared peer list for tracking peers
     let peer_list = Arc::new(Mutex::new(PeerList::new()));
@@ -102,7 +103,7 @@ async fn main() -> rustyline::Result<()> {
         println!("Warning: Could not determine local IP address, using 0.0.0.0");
         "0.0.0.0".parse().unwrap()
     });
-    startup_message.push(format!("{:12} = {}", "Local IP", local_ip));
+    app_state.insert("static:local_ip", local_ip.to_string());
 
     // Bind sockets
     let socket_send = Arc::new(UdpSocket::bind(format!("0.0.0.0:{}", send_port)).await?);
@@ -118,19 +119,15 @@ async fn main() -> rustyline::Result<()> {
 
     // Always send a discovery broadcast, regardless of whether the init port is available
     // This ensures we can find all peers, even after restarting
-
     // Try to bind to the init port, but don't worry if it's already in use
     let socket_recv_only_for_init =
         match UdpSocket::bind(format!("0.0.0.0:{}", DEFAULT_RECV_INIT_PORT)).await {
             Ok(sock) => {
-                startup_message.push(format!("{:12} = {}", "Init port", DEFAULT_RECV_INIT_PORT));
+                app_state.insert("static:init_port", DEFAULT_RECV_INIT_PORT.to_string());
                 Some(Arc::new(sock))
             }
             Err(e) if e.kind() == std::io::ErrorKind::AddrInUse => {
-                startup_message.push(format!(
-                    "{:12} = {}* already in use",
-                    "Init port", DEFAULT_RECV_INIT_PORT
-                ));
+                app_state.insert("static:init_port", DEFAULT_RECV_INIT_PORT.to_string());
                 None
             }
             Err(e) => return Err(e.into()),
@@ -182,12 +179,9 @@ async fn main() -> rustyline::Result<()> {
             println!("@@@ Continuing without init port listener (already in use)");
         }
 
-        startup_message.push("".to_string());
-        startup_message.push("Tips:".to_string());
-        startup_message.push("- use [/h] to show available commands".to_string());
-        startup_message.push("- use [/v] to show version and check for updates".to_string());
-
-        utils::display_message_block("Startup", startup_message);
+        // Show static state and tips on startup
+        ui::app_state::show_static_state(&app_state);
+        ui::app_state::show_tips();
 
         // Start peer discovery - always send a broadcast to find all peers
         // This ensures we can find all peers, even after restarting
@@ -234,6 +228,7 @@ async fn main() -> rustyline::Result<()> {
                         Some(socket_clone),
                         Some(username_clone),
                         Some(local_addr),
+                        app_state.clone(),
                     )
                     .await
                     {
