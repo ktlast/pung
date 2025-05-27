@@ -20,7 +20,7 @@ use tokio::net::UdpSocket;
 use tokio::sync::Mutex;
 use tokio::task;
 
-const DEFAULT_RECV_INIT_PORT: u16 = 9487;
+const DEFAULT_RECV_INIT_PORT: u16 = 9488;
 
 // Get version from Cargo.toml
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -95,8 +95,6 @@ async fn main() -> rustyline::Result<()> {
     };
     app_state.insert("pref:terminal_width", terminal_width.to_string());
 
-    let mut startup_message: Vec<String> = vec![];
-
     // Create shared peer list for tracking peers
     let peer_list = Arc::new(Mutex::new(PeerList::new()));
 
@@ -121,7 +119,6 @@ async fn main() -> rustyline::Result<()> {
 
     // Always send a discovery broadcast, regardless of whether the init port is available
     // This ensures we can find all peers, even after restarting
-
     // Try to bind to the init port, but don't worry if it's already in use
     let socket_recv_only_for_init =
         match UdpSocket::bind(format!("0.0.0.0:{}", DEFAULT_RECV_INIT_PORT)).await {
@@ -182,39 +179,9 @@ async fn main() -> rustyline::Result<()> {
             println!("@@@ Continuing without init port listener (already in use)");
         }
 
-        // Collect entries, sort by key, then format
-        let mut static_entries: Vec<_> = app_state
-            .iter()
-            .filter(|entry| entry.key().starts_with("static:"))
-            .collect();
-
-        // Sort by key
-        static_entries.sort_by(|a, b| a.key().cmp(b.key()));
-
-        // Format the sorted entries
-        let static_settings: Vec<_> = static_entries
-            .into_iter()
-            .map(|entry| {
-                format!(
-                    "{:15} = {}",
-                    entry
-                        .key()
-                        .replace("static:", "")
-                        .split("_")
-                        .collect::<Vec<_>>()
-                        .join(" "),
-                    entry.value()
-                )
-            })
-            .collect();
-
-        startup_message.extend(static_settings);
-        startup_message.push("".to_string());
-        startup_message.push("Tips:".to_string());
-        startup_message.push("- use [/h] to show available commands".to_string());
-        startup_message.push("- use [/v] to show version and check for updates".to_string());
-
-        utils::display_message_block("Startup", startup_message);
+        // Show static state and tips on startup
+        ui::app_state::show_static_state(&app_state);
+        ui::app_state::show_tips();
 
         // Start peer discovery - always send a broadcast to find all peers
         // This ensures we can find all peers, even after restarting
