@@ -42,20 +42,19 @@ pub async fn handle_command(
         }
         "/quit" | "/q" => Some("exit".to_string()),
         "/help" | "/h" => {
-            let help_text = "\
-        help?
-        Available commands:
-            /[ p | peers ]           - Show list of connected peers
-            /[ b | broadcast ]       - Manually send a discovery broadcast to find peers
-            /[ h | help ]            - Show this help message
-            /[ v | version ]         - Show version and check for updates
-            /[ q | quit ]            - Quit the application
-
-        Legend of prefixes:
-            @@@                      - Normal system messages
-            ###                      - Peer related events
-            ";
-            Some("@@@ ".to_string() + help_text)
+            utils::display_message_block("Help?", vec![
+                "Available commands:".to_string(),
+                "    /[ p | peers ]           ─ Show list of connected peers".to_string(),
+                "    /[ b | broadcast ]       ─ Manually send a discovery broadcast to find peers".to_string(),
+                "    /[ h | help ]            ─ Show this help message".to_string(),
+                "    /[ v | version ]         ─ Show version and check for updates".to_string(),
+                "    /[ q | quit ]            ─ Quit the application".to_string(),
+                "".to_string(),
+                "Legend of prefixes:".to_string(),
+                "    @@@                      ─ Normal system messages".to_string(),
+                "    ###                      ─ Peer related events".to_string(),
+            ]);
+            None
         }
         "/broadcast" | "/b" => {
             // Check if we have all the required parameters
