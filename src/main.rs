@@ -5,6 +5,7 @@ mod ui;
 mod utils;
 
 use clap::{Arg, Command};
+use dashmap::DashMap;
 use message::Message;
 use net::{listener, sender};
 use peer::PeerList;
@@ -26,6 +27,7 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[tokio::main]
 async fn main() -> rustyline::Result<()> {
+    let app_state: Arc<DashMap<&str, String>> = Arc::new(DashMap::new());
     // Parse command line arguments using clap
     let matches = Command::new("pung")
         .version(VERSION)
@@ -54,6 +56,7 @@ async fn main() -> rustyline::Result<()> {
         )
         .get_matches();
 
+    app_state.insert("static:version", VERSION.to_string());
     // Extract values from command line arguments
     let username = match matches.get_one::<String>("username") {
         Some(username) => {
@@ -70,9 +73,11 @@ async fn main() -> rustyline::Result<()> {
             format!("user-{}", hex::encode(bytes))
         }
     };
+    app_state.insert("static:username", username.clone());
 
     // Generate a random port for sending
     let send_port = utils::get_random_port(20000, 30000);
+    app_state.insert("static:send_port", send_port.to_string());
 
     // Generate a random port for receiving if not specified
     let receive_port = match matches.get_one::<String>("receive_port") {
@@ -81,18 +86,16 @@ async fn main() -> rustyline::Result<()> {
             .unwrap_or_else(|_| utils::get_random_port(10000, 20000)),
         None => utils::get_random_port(10000, 20000),
     };
+    app_state.insert("static:receive_port", receive_port.to_string());
 
     // Get terminal width from command-line arguments or use default
     let terminal_width = match matches.get_one::<String>("terminal_width") {
         Some(width_str) => width_str.parse::<usize>().unwrap_or(80),
         None => 80,
     };
+    app_state.insert("pref:terminal_width", terminal_width.to_string());
 
     let mut startup_message: Vec<String> = vec![];
-    startup_message.push(format!("{:12} = {}", "Version", VERSION));
-    startup_message.push(format!("{:12} = {}", "Username", username));
-    startup_message.push(format!("{:12} = {}", "Send port", send_port));
-    startup_message.push(format!("{:12} = {}", "Recv port", receive_port));
 
     // Create shared peer list for tracking peers
     let peer_list = Arc::new(Mutex::new(PeerList::new()));
@@ -102,7 +105,7 @@ async fn main() -> rustyline::Result<()> {
         println!("Warning: Could not determine local IP address, using 0.0.0.0");
         "0.0.0.0".parse().unwrap()
     });
-    startup_message.push(format!("{:12} = {}", "Local IP", local_ip));
+    app_state.insert("static:local_ip", local_ip.to_string());
 
     // Bind sockets
     let socket_send = Arc::new(UdpSocket::bind(format!("0.0.0.0:{}", send_port)).await?);
@@ -123,14 +126,11 @@ async fn main() -> rustyline::Result<()> {
     let socket_recv_only_for_init =
         match UdpSocket::bind(format!("0.0.0.0:{}", DEFAULT_RECV_INIT_PORT)).await {
             Ok(sock) => {
-                startup_message.push(format!("{:12} = {}", "Init port", DEFAULT_RECV_INIT_PORT));
+                app_state.insert("static:init_port", DEFAULT_RECV_INIT_PORT.to_string());
                 Some(Arc::new(sock))
             }
             Err(e) if e.kind() == std::io::ErrorKind::AddrInUse => {
-                startup_message.push(format!(
-                    "{:12} = {}* already in use",
-                    "Init port", DEFAULT_RECV_INIT_PORT
-                ));
+                app_state.insert("static:init_port", DEFAULT_RECV_INIT_PORT.to_string());
                 None
             }
             Err(e) => return Err(e.into()),
@@ -182,6 +182,33 @@ async fn main() -> rustyline::Result<()> {
             println!("@@@ Continuing without init port listener (already in use)");
         }
 
+        // Collect entries, sort by key, then format
+        let mut static_entries: Vec<_> = app_state
+            .iter()
+            .filter(|entry| entry.key().starts_with("static:"))
+            .collect();
+
+        // Sort by key
+        static_entries.sort_by(|a, b| a.key().cmp(b.key()));
+
+        // Format the sorted entries
+        let static_settings: Vec<_> = static_entries
+            .into_iter()
+            .map(|entry| {
+                format!(
+                    "{:15} = {}",
+                    entry
+                        .key()
+                        .replace("static:", "")
+                        .split("_")
+                        .collect::<Vec<_>>()
+                        .join(" "),
+                    entry.value()
+                )
+            })
+            .collect();
+
+        startup_message.extend(static_settings);
         startup_message.push("".to_string());
         startup_message.push("Tips:".to_string());
         startup_message.push("- use [/h] to show available commands".to_string());
