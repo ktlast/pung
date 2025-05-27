@@ -26,7 +26,7 @@ pub async fn handle_command(
                 Some("@@@ No peers connected.".to_string())
             } else {
                 utils::display_message_block(
-                    "Peers",
+                    "Peers (/p)",
                     peers
                         .iter()
                         .enumerate() // Add enumeration to get index
@@ -46,7 +46,7 @@ pub async fn handle_command(
         }
         "/quit" | "/q" => Some("exit".to_string()),
         "/help" | "/h" => {
-            utils::display_message_block("Help?", vec![
+            utils::display_message_block("Help? (/h)", vec![
                 "Parameters On Startup:".to_string(),
                 format!("    -u <username>         ─ Sets the username for chat; max length: {}", MAX_USERNAME_LEN).to_string(),
                 "    -r <receive-port>     ─ Sets the port for receiving messages (random if not specified)".to_string(),
