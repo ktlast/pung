@@ -21,7 +21,7 @@ use tokio::sync::Mutex;
 use tokio::task;
 
 const DEFAULT_RECV_INIT_PORT: u16 = 9487;
-
+const MAX_USERNAME_LEN: usize = 12;
 // Get version from Cargo.toml
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -60,9 +60,9 @@ async fn main() -> rustyline::Result<()> {
     // Extract values from command line arguments
     let username = match matches.get_one::<String>("username") {
         Some(username) => {
-            // Limit username to 12 characters
-            if username.len() > 12 {
-                username[0..12].to_string()
+            // Limit username to MAX_USERNAME_LEN characters
+            if username.len() > MAX_USERNAME_LEN {
+                username[0..MAX_USERNAME_LEN].to_string()
             } else {
                 username.clone()
             }

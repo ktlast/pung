@@ -28,7 +28,7 @@ pub fn show_static_state(app_state: &DashMap<&str, String>) {
         })
         .collect();
 
-    utils::display_message_block("State", static_settings);
+    utils::display_message_block("State (/s)", static_settings);
 }
 
 pub fn show_tips() {
@@ -36,5 +36,5 @@ pub fn show_tips() {
         "1) use [/h] to show available commands".to_string(),
         "2) use [/v] to show version and check for updates".to_string(),
     ];
-    utils::display_message_block("Tips", startup_message);
+    utils::display_message_block("Tips (/t)", startup_message);
 }

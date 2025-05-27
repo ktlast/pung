@@ -1,3 +1,4 @@
+use crate::MAX_USERNAME_LEN;
 use crate::VERSION;
 use crate::peer::{SharedPeerList, discovery};
 use crate::ui;
@@ -46,18 +47,28 @@ pub async fn handle_command(
         "/quit" | "/q" => Some("exit".to_string()),
         "/help" | "/h" => {
             utils::display_message_block("Help?", vec![
+                "Parameters On Startup:".to_string(),
+                format!("    -u <username>         ─ Sets the username for chat; max length: {}", MAX_USERNAME_LEN).to_string(),
+                "    -r <receive-port>     ─ Sets the port for receiving messages (random if not specified)".to_string(),
+                "    -w <width>            ─ Sets the terminal width for message display (default: 80)".to_string(),
+                "".to_string(),
+                "    Example:".to_string(),
+                "        ./pung -u pungman -w 90".to_string(),
+                "".to_string(),
+                "".to_string(),
                 "Available commands:".to_string(),
-                "    /[ b | broadcast ]       ─ Manually send a discovery broadcast to find peers".to_string(),
-                "    /[ h | help ]            ─ Show this help message".to_string(),
-                "    /[ p | peers ]           ─ Show list of connected peers".to_string(),
-                "    /[ q | quit ]            ─ Quit the application".to_string(),
-                "    /[ s | state ]           ─ Show application state".to_string(),
-                "    /[ t | tips ]            ─ Show tips".to_string(),
-                "    /[ v | version ]         ─ Show version and check for updates".to_string(),
+                "    /[ b | broadcast ]    ─ Manually send a discovery broadcast to find peers".to_string(),
+                "    /[ h | help ]         ─ Show this help message".to_string(),
+                "    /[ p | peers ]        ─ Show list of connected peers".to_string(),
+                "    /[ q | quit ]         ─ Quit the application".to_string(),
+                "    /[ s | state ]        ─ Show application state".to_string(),
+                "    /[ t | tips ]         ─ Show tips".to_string(),
+                "    /[ v | version ]      ─ Show version and check for updates".to_string(),
+                "".to_string(),
                 "".to_string(),
                 "Legend of prefixes:".to_string(),
-                "    @@@                      ─ Normal system messages".to_string(),
-                "    ###                      ─ Peer related events".to_string(),
+                "    @@@                   ─ Normal system messages".to_string(),
+                "    ###                   ─ Peer related events".to_string(),
             ]);
             None
         }
