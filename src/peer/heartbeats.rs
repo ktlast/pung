@@ -24,7 +24,7 @@ pub async fn start_heartbeat(
     let peer_list_clone = peer_list.clone();
     tokio::spawn(async move {
         let socket_clone = socket.clone();
-        
+
         // Send a heartbeat immediately when starting
         log::debug!("[Heartbeat] Sending initial heartbeat");
         if let Err(e) = send_heartbeats(
@@ -37,10 +37,10 @@ pub async fn start_heartbeat(
         {
             log::error!("Error sending initial heartbeat: {}", e);
         }
-        
+
         // Then set up the regular interval for subsequent heartbeats
         let mut interval = time::interval(Duration::from_secs(HEARTBEAT_INTERVAL));
-        
+
         loop {
             interval.tick().await;
             log::debug!("[Heartbeat] Sending heartbeats");
@@ -62,7 +62,7 @@ pub async fn start_heartbeat(
     tokio::spawn(async move {
         // Check for timeouts immediately when starting
         check_peer_timeouts(&peer_list_clone).await;
-        
+
         // Then set up the regular interval for subsequent checks
         let mut interval = time::interval(Duration::from_secs(HEARTBEAT_INTERVAL));
 
@@ -116,10 +116,10 @@ async fn check_peer_timeouts(peer_list: &SharedPeerList) {
     let stale_peers = {
         let mut peer_list = peer_list.lock().await;
         let removed = peer_list.remove_stale_peers(timeout);
-        
+
         // Clean up old entries from the recently removed list
         peer_list.clean_removed_list(cleanup_age);
-        
+
         removed
     };
 
@@ -152,13 +152,21 @@ pub async fn handle_heartbeat_message(
                         // This prevents both refreshing inactive peers and re-adding zombie peers
                         let is_new = peer_list.find_username_by_addr(&peer_addr).is_none();
                         let grace_period = Duration::from_secs(REMOVED_PEER_GRACE_PERIOD);
-                        let was_recently_removed = peer_list.was_recently_removed(&peer_addr, grace_period);
-                        
+                        let was_recently_removed =
+                            peer_list.was_recently_removed(&peer_addr, grace_period);
+
                         if is_new && !was_recently_removed {
-                            println!("@@@ Discovered new peer from heartbeat: {} ({})", peer_name, peer_addr);
+                            println!(
+                                "### Discovered new peer from heartbeat: {} ({})",
+                                peer_name, peer_addr
+                            );
                             peer_list.add_or_update_peer(peer_addr, peer_name.clone());
                         } else if was_recently_removed {
-                            log::debug!("Ignoring recently removed peer: {} ({})", peer_name, peer_addr);
+                            log::debug!(
+                                "Ignoring recently removed peer: {} ({})",
+                                peer_name,
+                                peer_addr
+                            );
                         }
                     }
                 }
