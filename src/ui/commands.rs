@@ -1,6 +1,8 @@
 use crate::VERSION;
 use crate::peer::{SharedPeerList, discovery};
+use crate::ui;
 use crate::utils;
+use dashmap::DashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::UdpSocket;
@@ -11,6 +13,7 @@ pub async fn handle_command(
     socket: Option<Arc<UdpSocket>>,
     username: Option<String>,
     local_addr: Option<SocketAddr>,
+    app_state: Arc<DashMap<&str, String>>,
 ) -> Option<String> {
     // Extract the command part (first word) for matching
     let command = input_line.split_whitespace().next().unwrap_or("");
@@ -48,6 +51,8 @@ pub async fn handle_command(
                 "    /[ h | help ]            ─ Show this help message".to_string(),
                 "    /[ p | peers ]           ─ Show list of connected peers".to_string(),
                 "    /[ q | quit ]            ─ Quit the application".to_string(),
+                "    /[ s | state ]           ─ Show application state".to_string(),
+                "    /[ t | tips ]            ─ Show tips".to_string(),
                 "    /[ v | version ]         ─ Show version and check for updates".to_string(),
                 "".to_string(),
                 "Legend of prefixes:".to_string(),
@@ -88,6 +93,14 @@ pub async fn handle_command(
                 }
             }
             Some(format!("@@@ Version: {}", VERSION))
+        }
+        "/tips" | "/t" => {
+            ui::app_state::show_tips();
+            None
+        }
+        "/state" | "/s" => {
+            ui::app_state::show_static_state(&app_state);
+            None
         }
         _ => {
             if input_line.starts_with("/") {

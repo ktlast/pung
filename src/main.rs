@@ -228,6 +228,7 @@ async fn main() -> rustyline::Result<()> {
                         Some(socket_clone),
                         Some(username_clone),
                         Some(local_addr),
+                        app_state.clone(),
                     )
                     .await
                     {
