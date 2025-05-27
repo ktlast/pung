@@ -44,11 +44,11 @@ pub async fn handle_command(
         "/help" | "/h" => {
             utils::display_message_block("Help?", vec![
                 "Available commands:".to_string(),
-                "    /[ p | peers ]           ─ Show list of connected peers".to_string(),
                 "    /[ b | broadcast ]       ─ Manually send a discovery broadcast to find peers".to_string(),
                 "    /[ h | help ]            ─ Show this help message".to_string(),
-                "    /[ v | version ]         ─ Show version and check for updates".to_string(),
+                "    /[ p | peers ]           ─ Show list of connected peers".to_string(),
                 "    /[ q | quit ]            ─ Quit the application".to_string(),
+                "    /[ v | version ]         ─ Show version and check for updates".to_string(),
                 "".to_string(),
                 "Legend of prefixes:".to_string(),
                 "    @@@                      ─ Normal system messages".to_string(),
