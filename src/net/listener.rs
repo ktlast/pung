@@ -14,7 +14,6 @@ use unicode_width::UnicodeWidthStr;
 pub async fn listen(
     socket: Arc<UdpSocket>,
     peer_list: Option<SharedPeerList>,
-    username: Option<String>,
     local_addr: Option<SocketAddr>,
     terminal_width: Option<usize>,
 ) -> std::io::Result<()> {
@@ -112,17 +111,9 @@ pub async fn listen(
                     log::debug!("[PeerList] Peer list content: {}", msg.content);
 
                     // Handle peer list message if peer tracking is enabled
-                    if let (Some(peer_list), Some(username), Some(local_addr)) =
-                        (&peer_list, &username, local_addr)
-                    {
-                        if let Err(e) = discovery::handle_peer_list_message(
-                            &msg,
-                            peer_list,
-                            socket_clone.clone(),
-                            username,
-                            local_addr,
-                        )
-                        .await
+                    if let (Some(peer_list), Some(local_addr)) = (&peer_list, local_addr) {
+                        if let Err(e) =
+                            discovery::handle_peer_list_message(&msg, peer_list, local_addr).await
                         {
                             log::error!("Error handling peer list message: {e}");
                         }

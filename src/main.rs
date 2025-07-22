@@ -140,14 +140,12 @@ async fn main() -> rustyline::Result<()> {
     if let Some(recv_socket) = socket_recv {
         // Start the listener
         let peer_list_clone = peer_list.clone();
-        let username_clone = username.clone();
 
         let terminal_width_clone = terminal_width;
         tokio::spawn(async move {
             if let Err(e) = listener::listen(
                 recv_socket.clone(),
                 Some(peer_list_clone),
-                Some(username_clone),
                 Some(local_addr),
                 Some(terminal_width_clone),
             )
