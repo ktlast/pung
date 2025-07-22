@@ -2069,6 +2069,7 @@ dependencies = [
  "rand 0.9.1",
  "reqwest",
  "rustyline",
+ "semver",
  "serde",
  "serde_json",
  "socket2 0.6.0",

@@ -1,6 +1,7 @@
 use chrono::{DateTime, FixedOffset, TimeZone, Utc};
 use get_if_addrs::get_if_addrs;
 use rand::Rng;
+use semver::Version;
 use std::net::IpAddr;
 
 pub fn display_time_from_timestamp(timestamp: i64) -> String {
@@ -73,16 +74,35 @@ pub async fn check_for_updates(current_version: &str) -> Option<String> {
                     if let Some(tag_name) = json.get("tag_name").and_then(|v| v.as_str()) {
                         let latest_version = tag_name.trim_start_matches('v');
 
-                        // Compare versions (simple string comparison, assumes semver format)
-                        if latest_version != current_version {
-                            return Some(latest_version.to_string());
+                        // Log the versions for debugging
+                        log::debug!(
+                            "Current version: {current_version}, Latest version: {latest_version}"
+                        );
+
+                        // Parse versions using semver for proper comparison
+                        if let (Ok(current_semver), Ok(latest_semver)) = (
+                            Version::parse(current_version),
+                            Version::parse(latest_version),
+                        ) {
+                            // Compare using semver (returns true if latest > current)
+                            if latest_semver > current_semver {
+                                return Some(latest_version.to_string());
+                            }
+                        } else {
+                            // Fallback to string comparison if semver parsing fails
+                            if latest_version != current_version {
+                                return Some(latest_version.to_string());
+                            }
                         }
                     }
                 }
             }
             None
         }
-        Err(_) => None,
+        Err(e) => {
+            log::debug!("Failed to check for updates: {e}");
+            None
+        }
     }
 }
 
