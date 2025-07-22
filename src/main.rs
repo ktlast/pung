@@ -170,7 +170,7 @@ async fn main() -> rustyline::Result<()> {
                 )
                 .await
                 {
-                    eprintln!("Listen for init error: {:?}", e);
+                    eprintln!("Listen for init error: {e:?}");
                 }
             });
         } else {
@@ -251,7 +251,7 @@ async fn main() -> rustyline::Result<()> {
                     let peers = peer_list.lock().await.get_peers();
                     for peer in &peers {
                         let target_addr = peer.addr.to_string();
-                        log::debug!("[Chat] Sending chat message to: {}", target_addr);
+                        log::debug!("[Chat] Sending chat message to: {target_addr}");
                         sender::send_message(socket_send_clone.clone(), &msg, &target_addr).await?;
                     }
                 }
@@ -263,7 +263,7 @@ async fn main() -> rustyline::Result<()> {
                 println!("@@@ Type [/quit] to exit.");
             }
             Err(err) => {
-                println!("Readline error: {:?}", err);
+                println!("Readline error: {err:?}");
                 break;
             }
         }

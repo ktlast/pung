@@ -32,7 +32,7 @@ pub async fn start_discovery(
     tokio::spawn(async move {
         // Send initial discovery message
         if let Err(e) = send_discovery_message(socket.clone(), &username, local_addr).await {
-            log::error!("Error sending initial discovery message: {}", e);
+            log::error!("Error sending initial discovery message: {e}");
         }
 
         // Start a timer to send discovery messages at regular intervals
@@ -42,7 +42,7 @@ pub async fn start_discovery(
         loop {
             interval.tick().await;
             if let Err(e) = send_discovery_message(socket.clone(), &username, local_addr).await {
-                log::error!("Error sending discovery message: {}", e);
+                log::error!("Error sending discovery message: {e}");
             }
 
             // Adjust interval based on current peer list size
