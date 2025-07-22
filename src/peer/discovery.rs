@@ -10,7 +10,7 @@ use tokio::net::UdpSocket;
 // Constants for discovery
 const BROADCAST_ADDR: &str = "255.255.255.255";
 const DEFAULT_BROADCAST_INTERVAL_SEC: u64 = 900;
-const BROADCAST_INTERVAL_ON_ALONE: u64 = 15;
+const BROADCAST_INTERVAL_ON_ALONE: u64 = 7;
 
 /// Determines the appropriate broadcast interval based on peer list size
 async fn determine_broadcast_interval(peer_list: &SharedPeerList) -> u64 {
@@ -148,14 +148,11 @@ pub async fn handle_discovery_message(
 pub async fn handle_peer_list_message(
     msg: &Message,
     peer_list: &SharedPeerList,
-    socket: Arc<UdpSocket>,
-    username: &str,
     local_addr: SocketAddr,
 ) -> std::io::Result<()> {
     // Parse the peer list from the message content
     let peer_addrs: Vec<&str> = msg.content.split(',').collect();
     let mut new_peers = false;
-    let socket_clone = socket.clone();
 
     // Add each peer to our list
     let mut peer_list_lock = peer_list.lock().await;
@@ -189,10 +186,8 @@ pub async fn handle_peer_list_message(
                 peer_list_lock.add_or_update_peer(addr, temp_name);
                 new_peers = true;
 
-                // Send a discovery message to this new peer
-                let discovery_msg = Message::new_discovery(username.to_string(), local_addr);
-                sender::send_message(socket_clone.clone(), &discovery_msg, &addr.to_string())
-                    .await?;
+                // Don't send discovery messages here - let the regular broadcast handle it
+                // This prevents feedback loops and message flooding
             }
         }
     }
