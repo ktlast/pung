@@ -99,7 +99,7 @@ pub async fn handle_discovery_message(
 
             // Only print a message if this is a new peer
             if is_new {
-                println!("### New peer discovered: {} ({})", msg.sender, addr);
+                println!("### New peer discovered: {} ({addr})", msg.sender);
 
                 let socket_clone = socket.clone();
 
