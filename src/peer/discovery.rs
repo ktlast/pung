@@ -100,42 +100,44 @@ pub async fn handle_discovery_message(
             // Only print a message if this is a new peer
             if is_new {
                 println!("### New peer discovered: {} ({})", msg.sender, addr);
-            }
 
-            let socket_clone = socket.clone();
+                let socket_clone = socket.clone();
 
-            // Send a discovery response back to the peer
-            let response = Message::new_discovery(username.to_string(), local_addr);
-            sender::send_message(socket_clone.clone(), &response, addr_str).await?;
+                // Send a discovery response back to the peer ONLY if this is a new peer
+                // This prevents infinite response loops
+                let response = Message::new_discovery(username.to_string(), local_addr);
+                sender::send_message(socket_clone.clone(), &response, addr_str).await?;
 
-            // Always send our peer list to the new peer (even if it's just us)
-            // This ensures complete peer discovery across the network
-            let peers = peer_list.get_peers();
+                // Always send our peer list to the new peer (even if it's just us)
+                // This ensures complete peer discovery across the network
+                let peers = peer_list.get_peers();
 
-            // Include ourselves in the peer list if we're not already there
-            let mut has_self = false;
-            for peer in &peers {
-                if peer.addr == local_addr {
-                    has_self = true;
-                    break;
+                // Include ourselves in the peer list if we're not already there
+                let mut has_self = false;
+                for peer in &peers {
+                    if peer.addr == local_addr {
+                        has_self = true;
+                        break;
+                    }
                 }
+
+                // Create the list of peer addresses to share
+                let mut peer_addrs: Vec<String> =
+                    peers.iter().map(|p| p.addr.to_string()).collect();
+
+                // Always include ourselves in the peer list we share
+                if !has_self {
+                    peer_addrs.push(local_addr.to_string());
+                }
+
+                // Send the peer list message
+                let peer_list_msg =
+                    Message::new_peer_list(username.to_string(), peer_addrs, local_addr);
+                sender::send_message(socket_clone.clone(), &peer_list_msg, addr_str).await?;
+
+                // Log that we shared our peer list
+                println!("@@@ Shared peer list with {} ({})", msg.sender, addr);
             }
-
-            // Create the list of peer addresses to share
-            let mut peer_addrs: Vec<String> = peers.iter().map(|p| p.addr.to_string()).collect();
-
-            // Always include ourselves in the peer list we share
-            if !has_self {
-                peer_addrs.push(local_addr.to_string());
-            }
-
-            // Send the peer list message
-            let peer_list_msg =
-                Message::new_peer_list(username.to_string(), peer_addrs, local_addr);
-            sender::send_message(socket_clone.clone(), &peer_list_msg, addr_str).await?;
-
-            // Log that we shared our peer list
-            println!("@@@ Shared peer list with {} ({})", msg.sender, addr);
         }
     }
 
