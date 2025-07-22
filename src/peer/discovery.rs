@@ -9,6 +9,7 @@ use tokio::net::UdpSocket;
 
 // Constants for discovery
 const BROADCAST_ADDR: &str = "255.255.255.255";
+const DEFAULT_BROADCAST_INTERVAL_SEC: u64 = 900;
 
 /// Starts the peer discovery process
 pub async fn start_discovery(
@@ -16,9 +17,23 @@ pub async fn start_discovery(
     username: String,
     local_addr: SocketAddr,
 ) -> std::io::Result<()> {
-    // Send initial discovery message
-    send_discovery_message(socket, &username, local_addr).await?;
+    tokio::spawn(async move {
+        // Send initial discovery message
+        if let Err(e) = send_discovery_message(socket.clone(), &username, local_addr).await {
+            log::error!("Error sending initial discovery message: {}", e);
+        }
 
+        // Start a timer to send discovery messages at regular intervals
+        let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(
+            DEFAULT_BROADCAST_INTERVAL_SEC,
+        ));
+        loop {
+            interval.tick().await;
+            if let Err(e) = send_discovery_message(socket.clone(), &username, local_addr).await {
+                log::error!("Error sending discovery message: {}", e);
+            }
+        }
+    });
     Ok(())
 }
 
