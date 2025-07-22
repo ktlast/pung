@@ -129,7 +129,7 @@ pub fn display_message_block(title: &str, messages: Vec<String>) {
         "─".repeat(title_len),
         "─".repeat(title_right_pad)
     );
-    println!("  │{}│", padded_title);
+    println!("  │{padded_title}│");
 
     // Draw the top of the message box with connections to title box
     println!(
