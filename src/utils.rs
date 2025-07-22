@@ -61,7 +61,7 @@ pub async fn check_for_updates(current_version: &str) -> Option<String> {
     // Send request with proper User-Agent header (required by GitHub API)
     match reqwest::Client::new()
         .get(url)
-        .header("User-Agent", format!("pung/{}", current_version))
+        .header("User-Agent", format!("pung/{current_version}"))
         .send()
         .await
     {

@@ -48,7 +48,7 @@ pub async fn handle_command(
         "/help" | "/h" => {
             utils::display_message_block("Help? (/h)", vec![
                 "Parameters On Startup:".to_string(),
-                format!("    -u <username>         ─ Sets the username for chat; max length: {}", MAX_USERNAME_LEN).to_string(),
+                format!("    -u <username>         ─ Sets the username for chat; max length: {MAX_USERNAME_LEN}").to_string(),
                 "    -r <receive-port>     ─ Sets the port for receiving messages (random if not specified)".to_string(),
                 "    -w <width>            ─ Sets the terminal width for message display (default: 80)".to_string(),
                 "".to_string(),
@@ -79,7 +79,7 @@ pub async fn handle_command(
                     Ok(_) => {
                         Some("@@@ Discovery broadcast sent. Searching for peers...".to_string())
                     }
-                    Err(e) => Some(format!("@@@ Failed to send discovery broadcast: {}", e)),
+                    Err(e) => Some(format!("@@@ Failed to send discovery broadcast: {e}")),
                 }
             } else {
                 Some("@@@ Cannot send broadcast: missing required parameters".to_string())
@@ -92,7 +92,7 @@ pub async fn handle_command(
                     let mut new_version_message: Vec<String> = vec![];
                     new_version_message.push("New version available!".to_string());
                     new_version_message
-                        .push(format!("- Update: [{}] -> [{}]", VERSION, latest_version));
+                        .push(format!("- Update: [{VERSION}] -> [{latest_version}]"));
                     new_version_message.push("".to_string());
                     new_version_message.push("Download the latest version from:".to_string());
                     new_version_message
@@ -103,7 +103,7 @@ pub async fn handle_command(
                     utils::display_message_block("New version", new_version_message);
                 }
             }
-            Some(format!("@@@ Version: {}", VERSION))
+            Some(format!("@@@ Version: {VERSION}"))
         }
         "/tips" | "/t" => {
             ui::app_state::show_tips();
@@ -117,8 +117,7 @@ pub async fn handle_command(
             if input_line.starts_with("/") {
                 // Unknown command starting with /
                 Some(format!(
-                    "@@@ Unknown command: {}. Type /help for available commands.",
-                    input_line
+                    "@@@ Unknown command: {input_line}. Type /help for available commands."
                 ))
             } else {
                 None // Not a command, should be treated as a regular message

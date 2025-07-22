@@ -153,7 +153,7 @@ async fn main() -> rustyline::Result<()> {
             )
             .await
             {
-                eprintln!("Listen error: {:?}", e);
+                eprintln!("Listen error: {e:?}");
             }
         });
 

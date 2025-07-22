@@ -35,7 +35,7 @@ pub async fn start_heartbeat(
         )
         .await
         {
-            log::error!("Error sending initial heartbeat: {}", e);
+            log::error!("Error sending initial heartbeat: {e}");
         }
 
         // Then set up the regular interval for subsequent heartbeats
@@ -52,7 +52,7 @@ pub async fn start_heartbeat(
             )
             .await
             {
-                log::error!("Error sending heartbeats: {}", e);
+                log::error!("Error sending heartbeats: {e}");
             }
         }
     });
