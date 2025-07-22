@@ -187,7 +187,13 @@ async fn main() -> rustyline::Result<()> {
         // This ensures we can find all peers, even after restarting
         let username_clone = username.clone();
         println!("@@@ Sending discovery broadcast to find peers...");
-        discovery::start_discovery(socket_send_clone.clone(), username_clone, local_addr).await?;
+        discovery::start_discovery(
+            socket_send_clone.clone(),
+            username_clone,
+            local_addr,
+            peer_list.clone(),
+        )
+        .await?;
 
         // Start heartbeat mechanism
         let peer_list_clone = peer_list.clone();

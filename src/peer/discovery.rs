@@ -10,12 +10,24 @@ use tokio::net::UdpSocket;
 // Constants for discovery
 const BROADCAST_ADDR: &str = "255.255.255.255";
 const DEFAULT_BROADCAST_INTERVAL_SEC: u64 = 900;
+const BROADCAST_INTERVAL_ON_ALONE: u64 = 15;
+
+/// Determines the appropriate broadcast interval based on peer list size
+async fn determine_broadcast_interval(peer_list: &SharedPeerList) -> u64 {
+    let peer_list_size = peer_list.lock().await.get_peers().len();
+    if peer_list_size > 0 {
+        DEFAULT_BROADCAST_INTERVAL_SEC
+    } else {
+        BROADCAST_INTERVAL_ON_ALONE
+    }
+}
 
 /// Starts the peer discovery process
 pub async fn start_discovery(
     socket: Arc<UdpSocket>,
     username: String,
     local_addr: SocketAddr,
+    peer_list: SharedPeerList,
 ) -> std::io::Result<()> {
     tokio::spawn(async move {
         // Send initial discovery message
@@ -25,13 +37,18 @@ pub async fn start_discovery(
 
         // Start a timer to send discovery messages at regular intervals
         let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(
-            DEFAULT_BROADCAST_INTERVAL_SEC,
+            determine_broadcast_interval(&peer_list).await,
         ));
         loop {
             interval.tick().await;
             if let Err(e) = send_discovery_message(socket.clone(), &username, local_addr).await {
                 log::error!("Error sending discovery message: {}", e);
             }
+
+            // Adjust interval based on current peer list size
+            interval = tokio::time::interval(tokio::time::Duration::from_secs(
+                determine_broadcast_interval(&peer_list).await,
+            ));
         }
     });
     Ok(())

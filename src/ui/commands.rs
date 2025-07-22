@@ -75,7 +75,7 @@ pub async fn handle_command(
         "/broadcast" | "/b" => {
             // Check if we have all the required parameters
             if let (Some(socket), Some(username), Some(addr)) = (socket, username, local_addr) {
-                match discovery::start_discovery(socket, username, addr).await {
+                match discovery::send_discovery_message(socket, &username, addr).await {
                     Ok(_) => {
                         Some("@@@ Discovery broadcast sent. Searching for peers...".to_string())
                     }
