@@ -31,14 +31,14 @@ pub async fn send_discovery_message(
     let discovery_msg = Message::new_discovery(username.to_string(), local_addr);
 
     // Broadcast to the default init port
-    let broadcast_addr = format!("{BROADCAST_ADDR}:{}", DEFAULT_RECV_INIT_PORT);
+    let broadcast_addr = format!("{BROADCAST_ADDR}:{DEFAULT_RECV_INIT_PORT}");
     sender::send_message(socket.clone(), &discovery_msg, &broadcast_addr).await?;
 
     // Also broadcast to the local port that this peer is using
     // This helps reach peers that couldn't bind to the default init port
     let local_port = local_addr.port();
     if local_port != DEFAULT_RECV_INIT_PORT {
-        let alt_broadcast_addr = format!("{BROADCAST_ADDR}:{}", local_port);
+        let alt_broadcast_addr = format!("{BROADCAST_ADDR}:{local_port}");
         sender::send_message(socket.clone(), &discovery_msg, &alt_broadcast_addr).await?;
     }
 
@@ -140,7 +140,7 @@ pub async fn handle_peer_list_message(
             // Skip if this looks like an anonymous peer from another instance
             // This helps prevent the proliferation of anonymous peers
             if addr_str.contains("anonymous@") {
-                log::debug!("Skipping anonymous peer: {}", addr_str);
+                log::debug!("Skipping anonymous peer: {addr_str}");
                 continue;
             }
 
@@ -151,7 +151,7 @@ pub async fn handle_peer_list_message(
             // Add the peer with their address
             if is_new {
                 // For new peers, use a temporary name until we learn their real username
-                let temp_name = format!("peer@{}", addr);
+                let temp_name = format!("peer@{addr}");
                 peer_list_lock.add_or_update_peer(addr, temp_name);
                 new_peers = true;
 

@@ -61,7 +61,7 @@ pub async fn check_for_updates(current_version: &str) -> Option<String> {
     // Send request with proper User-Agent header (required by GitHub API)
     match reqwest::Client::new()
         .get(url)
-        .header("User-Agent", format!("pung/{}", current_version))
+        .header("User-Agent", format!("pung/{current_version}"))
         .send()
         .await
     {
@@ -129,7 +129,7 @@ pub fn display_message_block(title: &str, messages: Vec<String>) {
         "─".repeat(title_len),
         "─".repeat(title_right_pad)
     );
-    println!("  │{}│", padded_title);
+    println!("  │{padded_title}│");
 
     // Draw the top of the message box with connections to title box
     println!(

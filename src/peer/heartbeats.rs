@@ -35,7 +35,7 @@ pub async fn start_heartbeat(
         )
         .await
         {
-            log::error!("Error sending initial heartbeat: {}", e);
+            log::error!("Error sending initial heartbeat: {e}");
         }
 
         // Then set up the regular interval for subsequent heartbeats
@@ -52,7 +52,7 @@ pub async fn start_heartbeat(
             )
             .await
             {
-                log::error!("Error sending heartbeats: {}", e);
+                log::error!("Error sending heartbeats: {e}");
             }
         }
     });
@@ -125,7 +125,7 @@ async fn check_peer_timeouts(peer_list: &SharedPeerList) {
 
     // Log removed peers
     for username in stale_peers {
-        println!("### Peer timed out and was removed: {}", username);
+        println!("### Peer timed out and was removed: {username}");
     }
 }
 
@@ -157,15 +157,12 @@ pub async fn handle_heartbeat_message(
 
                         if is_new && !was_recently_removed {
                             println!(
-                                "### Discovered new peer from heartbeat: {} ({})",
-                                peer_name, peer_addr
+                                "### Discovered new peer from heartbeat: {peer_name} ({peer_addr})"
                             );
                             peer_list.add_or_update_peer(peer_addr, peer_name.clone());
                         } else if was_recently_removed {
                             log::debug!(
-                                "Ignoring recently removed peer: {} ({})",
-                                peer_name,
-                                peer_addr
+                                "Ignoring recently removed peer: {peer_name} ({peer_addr})"
                             );
                         }
                     }

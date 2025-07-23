@@ -32,13 +32,13 @@ impl PeerList {
 
     // Generate a unique key for a peer based on username and address
     fn generate_peer_key(username: &str, addr: &SocketAddr) -> String {
-        format!("{}@{}", username, addr)
+        format!("{username}@{addr}")
     }
 
     pub fn add_or_update_peer(&mut self, addr: SocketAddr, username: String) {
         // If username is empty or just an IP address, generate a better name
         let username = if username.is_empty() || username.contains(':') {
-            format!("anonymous@{}", addr)
+            format!("anonymous@{addr}")
         } else {
             username
         };

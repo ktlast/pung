@@ -52,7 +52,7 @@ pub async fn listen(
                                     Some(verified_name) => {
                                         if &verified_name != sender_name {
                                             // Username mismatch - use the verified one but note the discrepancy
-                                            format!("{} (claimed: {})", verified_name, sender_name)
+                                            format!("{verified_name} (claimed: {sender_name})")
                                         } else {
                                             // Username matches what we expect
                                             verified_name
@@ -60,7 +60,7 @@ pub async fn listen(
                                     }
                                     None => {
                                         // We don't know this peer yet, use the claimed name but mark as unverified
-                                        format!("{} (unverified)", sender_name)
+                                        format!("{sender_name} (unverified)")
                                     }
                                 }
                             } else {
@@ -75,7 +75,7 @@ pub async fn listen(
 
                         // Calculate the base message length (sender + content)
                         let base_msg = format!("[{}]: {}", verified_sender, msg.content);
-                        let time_display = format!(" ({})", formatted_time);
+                        let time_display = format!(" ({formatted_time})");
 
                         // Calculate padding needed to right-align the timestamp
                         // Use UnicodeWidthStr to get the correct display width for multi-byte characters
@@ -93,13 +93,13 @@ pub async fn listen(
                 MessageType::Heartbeat => {
                     log::debug!("[Heartbeat] message received from: {}", msg.sender);
                     if let Some(addr) = &msg.sender_addr {
-                        log::debug!("[Heartbeat] Sender address: {}", addr);
+                        log::debug!("[Heartbeat] Sender address: {addr}");
                     }
                     // Handle heartbeat message if peer tracking is enabled
                     if let Some(peer_list) = &peer_list {
                         if let Err(e) = heartbeats::handle_heartbeat_message(&msg, peer_list).await
                         {
-                            log::error!("Error handling heartbeat message: {}", e);
+                            log::error!("Error handling heartbeat message: {e}");
                         }
                     }
                 }
@@ -107,7 +107,7 @@ pub async fn listen(
                     // DEBUG: Display peer list message
                     log::debug!("[PeerList] message received from: {}", msg.sender);
                     if let Some(addr) = &msg.sender_addr {
-                        log::debug!("[PeerList] Sender address: {}", addr);
+                        log::debug!("[PeerList] Sender address: {addr}");
                     }
                     log::debug!("[PeerList] Peer list content: {}", msg.content);
 
@@ -124,7 +124,7 @@ pub async fn listen(
                         )
                         .await
                         {
-                            log::error!("Error handling peer list message: {}", e);
+                            log::error!("Error handling peer list message: {e}");
                         }
                     }
                 }
@@ -137,7 +137,7 @@ pub async fn listen(
                 *seen_ids = seen_ids.iter().take(500).cloned().collect();
             }
         } else {
-            log::error!("Received invalid message from {}", addr);
+            log::error!("Received invalid message from {addr}");
         }
     }
 }
@@ -163,7 +163,7 @@ pub async fn listen_for_init(
                 // DEBUG: Display discovery message
                 log::debug!("[Discovery] message received from: {}", msg.sender);
                 if let Some(addr) = &msg.sender_addr {
-                    log::debug!("[Discovery] Sender address: {}", addr);
+                    log::debug!("[Discovery] Sender address: {addr}");
                 }
 
                 // Handle discovery message if peer tracking is enabled
@@ -179,12 +179,12 @@ pub async fn listen_for_init(
                     )
                     .await
                     {
-                        log::error!("Error handling discovery message: {}", e);
+                        log::error!("Error handling discovery message: {e}");
                     }
                 }
             }
         } else {
-            log::error!("Received invalid message from {}", addr);
+            log::error!("Received invalid message from {addr}");
         }
     }
 }

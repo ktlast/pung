@@ -106,12 +106,12 @@ async fn main() -> rustyline::Result<()> {
     app_state.insert("static:local_ip", local_ip.to_string());
 
     // Bind sockets
-    let socket_send = Arc::new(UdpSocket::bind(format!("0.0.0.0:{}", send_port)).await?);
+    let socket_send = Arc::new(UdpSocket::bind(format!("0.0.0.0:{send_port}")).await?);
     socket_send.set_broadcast(true)?;
 
     // Only bind the receive socket
     let socket_recv = Some(Arc::new(
-        UdpSocket::bind(format!("0.0.0.0:{}", receive_port)).await?,
+        UdpSocket::bind(format!("0.0.0.0:{receive_port}")).await?,
     ));
 
     // Create a proper socket address with the local IP for peer discovery
@@ -121,7 +121,7 @@ async fn main() -> rustyline::Result<()> {
     // This ensures we can find all peers, even after restarting
     // Try to bind to the init port, but don't worry if it's already in use
     let socket_recv_only_for_init =
-        match UdpSocket::bind(format!("0.0.0.0:{}", DEFAULT_RECV_INIT_PORT)).await {
+        match UdpSocket::bind(format!("0.0.0.0:{DEFAULT_RECV_INIT_PORT}")).await {
             Ok(sock) => {
                 app_state.insert("static:init_port", DEFAULT_RECV_INIT_PORT.to_string());
                 Some(Arc::new(sock))
@@ -153,7 +153,7 @@ async fn main() -> rustyline::Result<()> {
             )
             .await
             {
-                eprintln!("Listen error: {:?}", e);
+                eprintln!("Listen error: {e:?}");
             }
         });
 
@@ -170,7 +170,7 @@ async fn main() -> rustyline::Result<()> {
                 )
                 .await
                 {
-                    eprintln!("Listen for init error: {:?}", e);
+                    eprintln!("Listen for init error: {e:?}");
                 }
             });
         } else {
@@ -236,7 +236,7 @@ async fn main() -> rustyline::Result<()> {
                             println!("@@@ bye!");
                             break;
                         }
-                        println!("{}", response);
+                        println!("{response}");
                     }
                 } else if line.is_empty() {
                     continue;
@@ -245,7 +245,7 @@ async fn main() -> rustyline::Result<()> {
                     let peers = peer_list.lock().await.get_peers();
                     for peer in &peers {
                         let target_addr = peer.addr.to_string();
-                        log::debug!("[Chat] Sending chat message to: {}", target_addr);
+                        log::debug!("[Chat] Sending chat message to: {target_addr}");
                         sender::send_message(socket_send_clone.clone(), &msg, &target_addr).await?;
                     }
                 }
@@ -257,7 +257,7 @@ async fn main() -> rustyline::Result<()> {
                 println!("@@@ Type [/quit] to exit.");
             }
             Err(err) => {
-                println!("Readline error: {:?}", err);
+                println!("Readline error: {err:?}");
                 break;
             }
         }
