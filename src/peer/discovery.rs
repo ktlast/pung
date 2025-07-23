@@ -152,7 +152,7 @@ pub async fn handle_peer_list_message(
 ) -> std::io::Result<()> {
     // Parse the peer list from the message content
     let peer_addrs: Vec<&str> = msg.content.split(',').collect();
-    let mut new_peers = false;
+    let mut new_peers_count = 0;
 
     // Add each peer to our list
     let mut peer_list_lock = peer_list.lock().await;
@@ -184,7 +184,7 @@ pub async fn handle_peer_list_message(
                 // For new peers, use a temporary name until we learn their real username
                 let temp_name = format!("peer@{addr}");
                 peer_list_lock.add_or_update_peer(addr, temp_name);
-                new_peers = true;
+                new_peers_count += 1;
 
                 // Don't send discovery messages here - let the regular broadcast handle it
                 // This prevents feedback loops and message flooding
@@ -192,9 +192,9 @@ pub async fn handle_peer_list_message(
         }
     }
 
-    // If we added new peers, log it
-    if new_peers {
-        println!("### Discovered new peers from peer list");
+    // Only log if we actually discovered new peers, and be more specific
+    if new_peers_count > 0 {
+        log::debug!("Discovered {} new peer(s) from peer list", new_peers_count);
     }
 
     Ok(())
